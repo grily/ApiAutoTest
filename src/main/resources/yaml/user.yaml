@@ -9,16 +9,16 @@ v6console_moduleflag: &v6console_moduleflag v6console
 # 测试环境域名
 v5login_testhost: &v5login_test localhost:8080
 # 灰度环境域名
-v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+v5login_relhost: &v5login_rel localhost:8080
 # 生产环境域名
-v5login_prodhost: &v5login_prod storage-backend.nobook.com
+v5login_prodhost: &v5login_prod localhost:8080
 # v6功能模块的域名
 # 测试环境域名
 v6console_testhost: &v6console_test localhost:8080
 # 灰度环境域名
-v6console_relhost: &v6console_rel console-v6.nobook.com
+v6console_relhost: &v6console_rel localhost:8080
 # 生产环境域名
-v6console_prodhost: &v6console_prod console-v6.nobook.com
+v6console_prodhost: &v6console_prod localhost:8080
 
 
 czwl_pid_num: &czwl_pid CZWlTE4lVgz9
