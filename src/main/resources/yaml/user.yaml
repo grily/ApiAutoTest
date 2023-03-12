@@ -79,10 +79,6 @@ login:
   #  断言
   assert:
     #    一个case里的多重断言
-#    - - assertThat().body("msg", equalTo("success"))
-#      - assertThat().body("code", equalTo(0))
-#    - - assertThat().body("msg", equalTo("success"))
-#      - assertThat().body("code", equalTo(0))
     - - assertKey: msg
         assertType: equalTo
         assertValue: success
