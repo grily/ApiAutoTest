@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 套件 -->
+<suite name="Suite" parallel="false">
+    <!-- 测试集 -->
+    <test name="login">
+        <!-- 测试类组成的集合 -->
+        <classes>
+            <!-- 对应测试类，也就是测试用例 -->
+            <class name="com.iiaccout.yiguan.user"/>
+        </classes>
+    </test> <!-- Test -->
+</suite> <!-- Suite -->

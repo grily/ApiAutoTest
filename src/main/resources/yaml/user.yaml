@@ -1,0 +1,302 @@
+author: liruige
+procotol: &procotol http
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 个人中心
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test localhost:8080
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test localhost:8080
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+
+czwl_pid_num: &czwl_pid CZWlTE4lVgz9
+
+#teacher_username: &teacher_username 18010151728
+stu_username: &stu_username testlrg
+#使用&定义变量 stu_username  使用*stu_username可使用变量  <<表示合并到当前数据
+
+# 登录
+login:
+  run:
+  story: 01-【业务流程前置条件】-登录-个人中心需要登录
+  #  case的描述/目的
+  module_flag: *v5login_moduleflag
+  description:
+    - 【业务流程前置条件】-用户登录成功
+    - 【业务流程前置条件】-用户登录失败
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v5login_test
+  path: /sys/login
+  request_param: &req_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/json
+      User-Agent: *agent
+    params: &loginparams
+      username: admin
+      password: admin
+      captcha: 8xmfx
+  # 请求参数
+  request_params:
+    - <<: *req_param
+      params:
+        <<: *loginparams
+    - <<: *req_param
+      params:
+        <<: *loginparams
+        username: liruige
+        password: liruige
+        captcha: 8xmfx
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: &tea_token yhh_18010151728
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token ]
+    - filepath: &stu_token yhh_18600561778
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token ]
+  #  数据依赖的处理
+  depends_on: ~
+  #  断言
+  assert:
+    #    一个case里的多重断言
+#    - - assertThat().body("msg", equalTo("success"))
+#      - assertThat().body("code", equalTo(0))
+#    - - assertThat().body("msg", equalTo("success"))
+#      - assertThat().body("code", equalTo(0))
+    - - assertKey: msg
+        assertType: equalTo
+        assertValue: success
+      - assertKey: code
+        assertType: equalTo
+        assertValue: 0
+    - - assertKey: msg
+        assertType: equalTo
+        assertValue: success
+      - assertKey: code
+        assertType: equalTo
+        assertValue: 0
+
+save:
+  run:
+  story: 02-新建用户
+  #  case的描述/目的
+  module_flag: *v5login_moduleflag
+  description:
+    - 【新建用户】-用户创建成功
+    - 【新建用户】-用户常见失败
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v5login_test
+  path: /sys/user/save
+  request_param: &req_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/json
+      User-Agent: *agent
+    params: &saveparams
+      status: 1
+      roleIdList: [2]
+      username: autotest
+      password: autotest
+      email: autotest@qq.com
+  # 请求参数
+  request_params:
+    - <<: *req_param
+      params:
+        <<: *saveparams
+        username: autotest1
+        password: autotest1
+        email: autotest1@qq.com
+    - <<: *req_param
+      params:
+        <<: *saveparams
+
+  #  响应结果的处理
+  response: ~
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+#    - filepath: &tea_token yhh_18010151728
+#      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+#      resp_keys: [ token ]
+#      # 响应结果提示的字段值在保存时对应的key
+#      keys: [ auth_token ]
+#    - filepath: &stu_token yhh_18600561778
+#      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+#      resp_keys: [ token ]
+#      # 响应结果提示的字段值在保存时对应的key
+#      keys: [ auth_token ]
+  #  数据依赖的处理
+  depends_on:
+    - &token_depends
+      online: False
+      type: header
+      case_id: *tea_token
+      depend_key: [ auth_token ]
+      replace_key: [ token ]
+    - <<: *token_depends
+      case_id: *stu_token
+
+  #  断言
+  assert:
+    #    一个case里的多重断言
+#    - - assertThat().body("msg", equalTo("数据库中已存在该记录"))
+#      - assertThat().body("code", equalTo(500))
+#    - - assertThat().body("msg", equalTo("没有权限，请联系管理员授权"))
+#      - assertThat().body("code", equalTo(500))
+    - - assertKey: msg
+        assertType: equalTo
+        assertValue: 数据库中已存在该记录
+      - assertKey: code
+        assertType: equalTo
+        assertValue: 500
+    - - assertKey: msg
+        assertType: equalTo
+        assertValue: 没有权限，请联系管理员授权
+      - assertKey: code
+        assertType: equalTo
+        assertValue: 500
+
+# 获取用户列表 http://localhost:8080/sys/user/list?_search=false&nd=1678285185379&limit=10&page=1&sidx=&order=asc&_=1678285185292
+userlist:
+  run:
+  story: 03 - 用户列表
+  #  case的描述/目的
+  module_flag: *v5login_moduleflag
+  description:
+    - 【用户列表】- 获取每页10条数据
+    - 【用户列表】- 获取每页30条数据
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v5login_test
+  path: /sys/user/list
+  request_param: &userlist_param
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/json
+      User-Agent: *agent
+    params: &ulistparams
+      _search: false
+      limit: 10
+      page: 1
+      sidx:
+      order: asc
+  # 请求参数
+  request_params:
+    - <<: *userlist_param
+      params:
+        <<: *ulistparams
+    - <<: *userlist_param
+      params:
+        <<: *ulistparams
+        limit: 30
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: &user_list1 userlist1
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "page.list[0].userId" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ userId ]
+    -
+  #  数据依赖的处理
+  depends_on:
+    - &token_depends
+      online: False
+      type: header
+      case_id: *tea_token
+      depend_key: [ auth_token ]
+      replace_key: [ token ]
+    - <<: *token_depends
+      case_id: *stu_token
+
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    #    - - assertThat().body("msg", equalTo("success"))
+    #      - assertThat().body("code", equalTo(0))
+    #    - - assertThat().body("msg", equalTo("success"))
+    #      - assertThat().body("code", equalTo(0))
+    - - assertKey: msg
+        assertType: equalTo
+        assertValue: success
+      - assertKey: code
+        assertType: equalTo
+        assertValue: 0
+    - - assertKey: msg
+        assertType: equalTo
+        assertValue: 没有权限，请联系管理员授权
+      - assertKey: code
+        assertType: equalTo
+        assertValue: 500
+
+userinfo:
+  run:
+  story: 04 - 获取用户详情
+  #  case的描述/目的
+  module_flag: *v5login_moduleflag
+  description:
+    - 【用户详情】- 用户存在,展示用户详细信息
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v5login_test
+  path: /sys/user/info/$userId
+  request_param: &userinfo_param
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/json
+      User-Agent: *agent
+    params:
+      _: 1678539145921
+  # 请求参数
+  request_params:
+    - <<: *userinfo_param
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    -
+  #  数据依赖的处理
+  depends_on:
+    - &token_depends
+      online: False
+      type: header
+      case_id: *tea_token
+      depend_key: [ auth_token ]
+      replace_key: [ token ]
+
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    #    - - assertThat().body("msg", equalTo("success"))
+    #      - assertThat().body("code", equalTo(0))
+    #    - - assertThat().body("msg", equalTo("success"))
+    #      - assertThat().body("code", equalTo(0))
+    - - assertKey: msg
+        assertType: equalTo
+        assertValue: success
+      - assertKey: code
+        assertType: equalTo
+        assertValue: 0
+
+
