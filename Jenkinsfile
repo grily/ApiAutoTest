@@ -53,5 +53,5 @@ pipeline { // Jenkins脚本的根节点，不能缺失
 //                recipientProviders: [buildUser()] // 邮件只发送给构建人
 //               )
 //           }
-//       }
+      }
 }
