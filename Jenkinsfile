@@ -7,7 +7,7 @@ def target_file = "${app_name}/target/*.jar" // 需要上传的文件（基于Je
 pipeline { // Jenkins脚本的根节点，不能缺失
     agent any // 可以指定由哪个Jenkins节点执行（any 选择任意）
     options { // Jenkins的选项，可以配置构建的超时时间、日志输出时间等
-        //timestamps() // 日志输出时间（需要Build Timestamp Plugin 插件支持）
+        timestamps() // 日志输出时间（需要Build Timestamp Plugin 插件支持）
     }
 //     tools { // 配置打包用的工具
 //         maven 'Maven-3.6.1' // Maven-3.6.1是全局工具配置中的Maven名称
