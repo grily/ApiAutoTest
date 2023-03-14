@@ -21,7 +21,7 @@ pipeline { // Jenkins脚本的根节点，不能缺失
             }
             stage('Build') { // 阶段一 使用Maven打包项目
                 steps {
-                    sh 'mvn clean '
+                    sh 'mvn clean '    //Linux上的命令
                 }
             }
 //         stage('Deploy') { // 阶段二 把打包后的Jar包上传至服务器，并执行Shell脚本(需要Publish Over SSH插件支持)

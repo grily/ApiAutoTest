@@ -1,0 +1,4025 @@
+author: liruige
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 个人中心
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+
+czwl_pid_num: &czwl_pid CZWlTE4lVgz9
+
+#teacher_username: &teacher_username 18010151728
+stu_username: &stu_username testlrg
+#使用&定义变量 stu_username  使用*stu_username可使用变量  <<表示合并到当前数据
+
+# 登录
+login:
+  run:
+  story: 01-【业务流程前置条件】-登录-个人中心需要登录
+  #  case的描述/目的
+  module_flag: *v5login_moduleflag
+  description:
+    - 【业务流程前置条件】-学生用户登录-18201143011
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v5login_test
+  path: /passport/v5/login/username
+  request_param: &req_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &loginparams
+      username: *stu_username
+      password: LRGlrg51143#!
+      platform: web
+      clientinfo: ~
+      pid: *czwl_pid
+  # 请求参数
+  request_params:
+    - <<: *req_param
+      params:
+        <<: *loginparams
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: &tea_token yhh_18010151728.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token ]
+    - filepath: &stu_token yhh_18600561778.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token ]
+  #  数据依赖的处理
+  depends_on: ~
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("grily" in jsonpath(req_json, "$.nickname"))
+
+# 上传附件
+uploadfile:
+  run:
+  story: 02-上传附件
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 验证上传图片是否成功，存储图片地址，创建学案时添加图片使用
+    - 验证上传多个图片是否成功
+    - 验证上传文件参数传递错误报错
+    - 验证多上传json参数是否成功
+    - 验证files传空值，报错
+    - 验证不传files报错
+    - 验证二级files为空报错
+    - 验证二级files[]为空报错
+  #  设置request_param 下的params 是params 还是data
+  params_type: files
+  host: *v6console_test
+  path: /v1/attachment/upload
+  request_param: &file_param
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      authorization: Bearer $token
+
+    files:
+      # 传递文件二进制流
+      files: open("upload_data/yhh_1.jpg","rb")
+  # 请求参数
+  request_params:
+    - <<: *file_param
+    - <<: *file_param
+      files:
+        - - files[]
+          - open("upload_data/yhh_1.jpg","rb")
+        - - files[]
+          - open("upload_data/yhh_2.jpg","rb")
+    - <<: *file_param
+      files:
+        file: open("upload_data/yhh_2.jpg","rb")
+    - <<: *file_param
+      files:
+        files: open("upload_data/yhh_2.jpg","rb")
+      json:
+        file: upload.jpg
+    - <<: *file_param
+      files:
+    - url: $url
+      method: post
+      headers:
+        User-Agent: *agent
+        authorization: Bearer $token
+
+      json:
+        file_address: upload.jpg
+    - <<: *file_param
+      files:
+        files:
+    - <<: *file_param
+      files:
+        - - files[]
+          -
+
+          #  响应结果的处理
+  response:
+    # 将响应结果中的date[0].id以及data[0].url存储到json文件总
+    - filepath: &upload_json 18010151728_upload_img.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys:
+        - $.data[0].id
+        - $.data[0].url
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ studyid_resp, resp_upload_img ]
+    #  数据依赖的处理
+  depends_on:
+    - &token_depends
+      online: False
+      type: response
+      case_id: *tea_token
+      depend_key: [ auth_token ]
+      replace_key: [ token ]
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+      case_id: *stu_token
+    - <<: *token_depends
+      case_id: *stu_token
+    - <<: *token_depends
+      case_id: *stu_token
+  #  断言
+  assert:
+    #    异常断言提示信息查询study_err.json文件中upload_file相关断言
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(False != jsonpath(req_json, "$.data[*].url"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(False != jsonpath(req_json, "$.data[*].url"))
+    - - pytest.assume($$$$json_file::study_err.json::upload_file_no_param_files_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::upload_file_no_param_files_message$$$$" in jsonpath(req_json,"$.data[*].message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(False != jsonpath(req_json, "$.data[*].url"))
+    - - pytest.assume($$$$json_file::study_err.json::upload_file_no_param_files_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::upload_file_no_param_files_message$$$$" in jsonpath(req_json,"$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::upload_file_no_param_files_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::upload_file_no_param_files_message$$$$" in jsonpath(req_json,"$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::upload_file_no_param_files_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::upload_file_no_param_files_message$$$$" in jsonpath(req_json,"$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::upload_file_no_param_files_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::upload_file_no_param_files_message$$$$" in jsonpath(req_json,"$.data[*].message"))
+
+# 精品资源列表
+experiment:
+  run:
+  story: 03-【业务流程前置条件】-精品资源-列表，创建学案使用
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 【业务流程前置条件】-获取初中化学实验，并存储第一个实验
+    - 【业务流程前置条件】-获取高中化学实验，并存储第一个实验
+    - 【业务流程前置条件】-获取初中物理实验，并存储第一个实验
+    - 【业务流程前置条件】-获取高中物理实验，并存储第一个实验
+  #  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/index
+  request_param: &index_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      authorization: Bearer $token
+
+    params: &index_param
+      # 读取前5条数据，只查询探究实验
+      per-page: 5
+      dataVersion: huaxue_release
+      page: 1
+      gradePhase: 2
+      subjectId: 2
+      actionType: 100
+
+  # 请求参数
+  request_params:
+    - <<: *index_params
+    - <<: *index_params
+      params:
+        <<: *index_param
+        gradePhase: 3
+    - <<: *index_params
+      params:
+        <<: *index_param
+        subjectId: 1
+        gradePhase: 2
+    - <<: *index_params
+      params:
+        <<: *index_param
+        subjectId: 1
+        gradePhase: 3
+  #  响应结果的处理
+  response:
+    # 存储实验id，实验title、实验缩略图等内容，创建学案时，需使用实验缩略图，实验title，实验id
+    - &experiment_file
+      filepath: &chemistry_m_experiment 18010151728_chemistry_experiment_m.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys:
+        - $.data[0].id
+        - $.data[0].contents
+        - $.data[0].title
+        - $.data[0].imgUrl
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ rsp_id, resp_contents, resp_title, resp_imgUrl ]
+    - <<: *experiment_file
+      filepath: &chemistry_h_experiment 18010151728_chemistry_experiment_h.json
+    - <<: *experiment_file
+      filepath: &physics_m_experiment 18010151728_physics_experiment_m.json
+    - <<: *experiment_file
+      filepath: &physics_h_experiment 18010151728_physics_experiment_h.json
+  #  数据依赖的处理
+  depends_on: ~
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(False != jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(False != jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(False != jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(False != jsonpath(req_json, "$.data[*].id"))
+
+# 创建学案
+study:
+  run:
+  story: 04-导学案创建
+  module_flag: *v6console_moduleflag
+  #  case的描述/目的
+  # 需注意本次执行实验均使用化学实验
+  description:
+    - 【学案流程1】验证创建初中化学学案，包含标题，内容，图片，实验是否成功
+    - 【学案流程2】验证创建高中化学学案，包含标题，内容，图片，实验是否成功
+    - 【学案流程3】验证创建初中物理学案，包含标题，内容，图片，实验是否成功
+    - 【学案流程4】验证创建高中物理学案，包含标题，内容，图片，实验是否成功
+    - 【学案流程5】验证创建初中生物学案，包含标题，内容，图片是否成功
+    - 【学案流程6】验证创建高中生物学案，包含标题，内容，图片是否成功
+    # 2022-11-23 由于新增删除学案操作，记录全部创建的学案，并在最后删除
+    - 【学案流程7】验证创建初中化学学案，包含标题，内容，图片是否成功
+    - 【学案流程8】验证创建高中化学学案，包含标题，内容，图片是否成功
+    - 验证创建高中化学学案，只有学案名称，422报错
+    - 【学案流程9】验证创建高中化学学案，有标题、没有内容是否成功
+    - 【学案流程10】验证创建学案学案内容为空是否成功
+    - 验证创建学案不传附件参数，400报错，缺少参数
+    - 验证创建学案没有学科，422报错，学科ID cannot be blank
+    - 验证创建学案没有学段，422报错，学段ID cannot be blank
+    - 验证创建学案标题为空，422报错，标题排序首字母 cannot be blank
+    - 验证创建学案科目不存在，学段存在，422报错，学科id is invalid
+    - 【学案流程11】验证创建学案科目存在，学段不存在是否成功
+    - 【学案流程12】验证创建学案标题传数字，是否创建成功
+    - 【学案流程13】验证创建学案标题传递html标签，是否创建成功
+    - 验证创建学案附件错误参数，不传数组
+    - 验证创建学案内容错误，不传数组
+  #  设置request_param 下的params 是params 还是data
+  params_type: json
+  host: *v6console_test
+  path: /v1/task/create
+  request_param: &add_study_params
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/json
+      User-Agent: *agent
+      authorization: Bearer $token
+
+    json: &add_study
+      # 学案附件 必填 类型list，允许传空list，
+      attachment: &attachment
+        # 图片附件
+        # 定义变量upload_img，依赖于upload_file响应结果中的data.url
+        - &img
+          align: center
+          children:
+            - text: ''
+          flag: 0.8908749532566269
+          id: 649
+          imgName: 321omw46p04
+          status: done
+          type: img
+          url: $upload_img
+        # 实验附件
+        # 分别定义变量imgurl（图片地址），content（资源id），title（资源名称），依赖与精品资源列表中响应结果中的data.imgUrl,data.content,data.title
+        - &experiment
+          children:
+            - text: ''
+          cover: $imgUrl
+          flag: 0.11648809001580274
+          id: $content
+          thumb: $imgUrl
+          title: $title
+          type: experiment
+          url: https://share-huaxue.noteach.com.cn/?editor-share-hide=1&mouse-wheel-lock=1&sourceid=res-$content
+      # 学案内容，包含标题、内容、图片、实验等，必传，可传空值
+      content:
+        # 学案标题，学案标题可为空
+        - &content_title
+          children:
+            - text: ceshi
+          flag: 0.25544956830083043
+          type: title
+        # 学案内容
+        - &content_text
+          children:
+            - text: ceshi
+          flag: 0.6325237379123809
+          type: p
+        # 学案图片
+        - &content_img
+          align: center
+          children:
+            - text: ''
+          flag: 0.8908749532566269
+          id: 649
+          imgName: 321omw46p04
+          status: done
+          type: img
+          url: $upload_img
+        # 学案实验
+        - &content_experiment
+          children:
+            - text: ''
+          cover: $imgUrl
+          flag: 0.11648809001580274
+          id: $content
+          thumb: $imgUrl
+          title: $title
+          type: experiment
+          url: https://share-huaxue.noteach.com.cn/?editor-share-hide=1&mouse-wheel-lock=1&sourceid=res-$content
+      # 学科
+      subject_id: 2
+      # 学案名称
+      title: ceshi
+      # 学段
+      grade_phase_id: 2
+  # 请求参数
+  request_params:
+    - <<: *add_study_params
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        subject_id: 2
+        grade_phase_id: 3
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        subject_id: 1
+        grade_phase_id: 2
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        subject_id: 1
+        grade_phase_id: 3
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        subject_id: 3
+        grade_phase_id: 2
+        attachment:
+          - <<: *img
+        content:
+          - <<: *content_title
+          - <<: *content_text
+          - <<: *content_img
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        subject_id: 3
+        grade_phase_id: 3
+        attachment:
+          - <<: *img
+        content:
+          - <<: *content_title
+          - <<: *content_text
+          - <<: *content_img
+    # 学案流程7
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        attachment:
+          - <<: *img
+        content:
+          - <<: *content_title
+          - <<: *content_text
+          - <<: *content_img
+    # 学案流程8
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        grade_phase_id: 3
+        attachment:
+          - <<: *img
+        content:
+          - <<: *content_title
+          - <<: *content_text
+          - <<: *content_img
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        attachment:
+        content:
+    # 学案流程9
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        attachment: [ ]
+        content:
+          - <<: *content_title
+    # 学案流程10
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 2
+        grade_phase_id: 2
+        attachment: [ ]
+        title: ceshi
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 2
+        grade_phase_id: 2
+        title: ceshi
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        grade_phase_id: 2
+        attachment:
+        title: ceshi
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 2
+        attachment:
+        title: ceshi
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 2
+        attachment: [ ]
+        title: ~
+        grade_phase_id: 2
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 9
+        attachment: [ ]
+        title: ceshi
+        grade_phase_id: 2
+
+    # 学案流程11
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 2
+        attachment: [ ]
+        title: ceshi
+        grade_phase_id: 10
+    # 学案流程12
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 2
+        attachment: [ ]
+        title: 123
+        grade_phase_id: 3
+    # 学案流程13
+    - <<: *add_study_params
+      json:
+        content:
+          -
+        subject_id: 2
+        attachment: [ ]
+        title: <a href="www.baidu.com">ceshi</a><b>lisi</b>
+        grade_phase_id: 3
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        attachment: string_text
+    - <<: *add_study_params
+      json:
+        <<: *add_study
+        content: string_text
+
+  #  响应结果的处理
+  response:
+    #  存储创建学案响应结果的学案id，学案title以及创建时间，后续接口请求依赖使用
+    - &study_file
+      filepath: &chemistry_m_study 18010151728_chemistry_study_m.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys:
+        - $.data.id
+        - $.data.title
+        - $.data.created_at
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ studyid_resp,  resp_title, resp_time ]
+    - <<: *study_file
+      filepath: &chemistry_h_study 18010151728_chemistry_study_h.json
+    - <<: *study_file
+      filepath: &physics_m_study 18010151728_physics_study_m.json
+    - <<: *study_file
+      filepath: &physics_h_study 18010151728_physics_study_h.json
+    - <<: *study_file
+      filepath: &biology_m_study 18010151728_biology_study_m.json
+    - <<: *study_file
+      filepath: &biology_h_study 18010151728_biology_study_h.json
+    - <<: *study_file
+      filepath: &noexperiment_m_study 18010151728_noexperiment_study_m.json
+    - <<: *study_file
+      filepath: &noexperiment_h_study 18010151728_noexperiment_study_h.json
+    -
+    - <<: *study_file
+      filepath: &nocontent_study 18010151728_nocontent_study.json
+    - <<: *study_file
+      filepath: &nullcontent_study 18010151728_nullcontent_study.json
+    -
+    -
+    -
+    -
+    -
+    - <<: *study_file
+      filepath: &no_grade_study 18010151728_grade_study.json
+    - <<: *study_file
+      filepath: &num_title_study 18010151728_num_title_study.json
+    - <<: *study_file
+      filepath: &html_title_study 18010151728_html_title_study.json
+
+
+    #  数据依赖的处理
+  depends_on:
+    # 对学案进行操作，需使用用户token，获取登录接口存储token，同时需要上传文件的url以及获取到的资源id，url，title，依赖于resource_list请求响应结果中的content,imgutl以及title
+    - - <<: *token_depends
+      - &experiment_depend
+        online: False
+        type: response
+        case_id: *chemistry_m_experiment
+        depend_key: [ resp_contents, resp_imgUrl, resp_title ]
+        replace_key: [ content, imgUrl, title ]
+      - &upload_depend
+        online: False
+        type: response
+        case_id: *upload_json
+        depend_key: [ resp_upload_img ]
+        replace_key: [ upload_img ]
+    - - <<: *token_depends
+      - <<: *experiment_depend
+        case_id: *chemistry_h_experiment
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *experiment_depend
+        case_id: *physics_m_experiment
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *experiment_depend
+        case_id: *physics_h_experiment
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *upload_depend
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+
+  #  断言
+  assert:
+    #  一个case里的多重断言，接口请求错误相关状态码以及提示信息来源与study_err.json文件中create_study相关内容
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume($$$$json_file::study_err.json::create_study_no_param_content_status_code$$$$==req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::create_study_no_param_content_message$$$$" in jsonpath(req_json, "$.data[:].message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume($$$$json_file::study_err.json::create_study_no_param_attachment_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::create_study_no_param_attachment_message$$$$" in jsonpath(req_json,"$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::create_study_no_param_subjectId_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::create_study_no_param_subjectId_message$$$$" in jsonpath(req_json, "$.data[:].message"))
+    - - pytest.assume($$$$json_file::study_err.json::create_study_no_param_grade_phase_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::create_study_no_param_grade_phase_id_message$$$$" in jsonpath(req_json, "$.data[:].message"))
+    - - pytest.assume($$$$json_file::study_err.json::create_study_no_param_title_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::create_study_no_param_title_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::create_study_err_param_subjectId_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::create_study_err_param_subjectId_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.title::0$$$$ in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume('$$$$req_param::$.json.title::0$$$$' in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume($$$$json_file::study_err.json::create_study_err_param_content_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::create_study_err_param_content_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+
+# 编辑学案
+editstudy:
+  run:
+  story: 05-导学案编辑
+  module_flag: *v6console_moduleflag
+  #  case的描述/目的
+  description:
+    - 【学案流程1】验证编辑初中化学学案是否成功
+    - 【学案流程2】验证编辑高中化学学案是否成功
+    - 【学案流程3】验证编辑初中物理学案是否成功
+    - 【学案流程4】验证编辑高中物理学案是否成功
+    - 【学案流程5】验证编辑初中生物学案是否成功
+    - 【学案流程6】验证编辑高中生物学案是否成功
+    - 验证编辑学案没有task_id，400报错
+    - 验证编辑学案task_id为空，400报错
+    - 验证编辑不存在学案，404报错
+    - 验证编辑学案没有科目，422报错，学科IDcannot be blank
+    - 验证编辑学案没有标题参数是否成功
+    - 验证编辑学案没有附件，400报错，缺少参数
+    - 验证编辑学案没有内容，正文content并非是json格式报错
+  #  设置request_param 下的params 是params 还是data
+  params_type: json
+  host: *v6console_test
+  path: /v1/task/modify
+  request_param: &edit_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      authorization: Bearer $token
+      Content-Type: application/json
+
+    params:
+      task_id: $req_id
+    json: &edit_param
+      # 在请求参数中根据实际情况定义锚点，供接口其他情况使用，edit_study等接口使用
+      # 编辑时包含标题、内容、附件、学科，四个字段，标题字段可不传，其他字段可传对应类型空值
+      # 学案名称 字符串
+      title: &edit_name auto_edit_name
+      # 学科，1、物理 2、化学 3、生物 整型
+      subject_id: 2
+      # 学案，按顺序在页面逐条展示内容 数组
+      content:
+        # 学案标题
+        - &edit_title
+          <<: *content_title
+          children:
+            - text: *edit_name
+        # 学案内容
+        - &edit_content
+          <<: *content_text
+          children:
+            - text: aotu_edit_text
+        # 学案内容中的图片
+        - &edit_img
+          <<: *content_img
+        # 学案内容中的实验
+        - &edit_experiment
+          <<: *content_experiment
+      # 学案附件 数组
+      attachment:
+        # 学案内容中的图片与实验附件，可不传
+        - &edit_attachment_img
+          <<: *img
+        - &edit_attachment_experiment
+          <<: *experiment
+  # 请求参数
+  request_params:
+    - <<: *edit_params
+    - <<: *edit_params
+      json:
+        <<: *edit_param
+        subject_id: 2
+    - <<: *edit_params
+      json:
+        <<: *edit_param
+        subject_id: 1
+    - <<: *edit_params
+      json:
+        <<: *edit_param
+        subject_id: 1
+    - <<: *edit_params
+      json:
+        <<: *edit_param
+        subject_id: 3
+        content:
+          - <<: *edit_content
+          - <<: *edit_title
+
+          - <<: *edit_img
+        attachment:
+          - <<: *edit_attachment_img
+    - <<: *edit_params
+      json:
+        <<: *edit_param
+        subject_id: 3
+        content:
+          - <<: *edit_title
+          - <<: *edit_content
+          - <<: *edit_img
+        attachment:
+          - <<: *edit_attachment_img
+    - <<: *edit_params
+      params:
+    - <<: *edit_params
+      params:
+        task_id:
+    - <<: *edit_params
+      params:
+        task_id: 0
+    - <<: *edit_params
+      json:
+        <<: *edit_param
+        subject_id:
+    - <<: *edit_params
+      json:
+        <<: *edit_param
+        content:
+          - <<: *edit_title
+          - <<: *edit_content
+          - <<: *edit_experiment
+          - <<: *edit_img
+        attachment:
+          - <<: *edit_attachment_img
+          - <<: *edit_attachment_experiment
+        subject_id: 2
+    - <<: *edit_params
+      json:
+        content:
+          -
+        subject_id: 2
+        title: ceshi
+    - <<: *edit_params
+      json:
+        subject_id: 2
+        attachment: [ ]
+        title: ceshi
+
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    -
+    #  数据依赖的处理
+  depends_on:
+    #  编辑学案依赖，依赖于登录信息，用户存储学案信息，获取实验资源信息以及上传图片url
+    - - <<: *token_depends
+      - <<: *experiment_depend
+      - &study_depend
+        online: False
+        type: response
+        case_id: *chemistry_m_study
+        depend_key: [ studyid_resp ]
+        replace_key: [ req_id ]
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *experiment_depend
+        case_id: *chemistry_h_experiment
+      - <<: *study_depend
+        case_id: *chemistry_h_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *experiment_depend
+        case_id: *physics_m_experiment
+      - <<: *study_depend
+        case_id: *physics_m_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *experiment_depend
+        case_id: *physics_h_experiment
+      - <<: *study_depend
+        case_id: *physics_h_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *biology_m_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *biology_h_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+      - <<: *experiment_depend
+      - <<: *upload_depend
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+  assert:
+    #    编辑学案断言，错误请求断言状态码以及内容来源与study_err.json文件中edit_study相关内容
+    - - pytest.assume( 200 == req.status_code)
+      - pytest.assume(None != jsonpath(req_json, '$.data'))
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume( 200 == req.status_code)
+      - pytest.assume(None != jsonpath(req_json, '$.data'))
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_h.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume( 200 == req.status_code)
+      - pytest.assume(None != jsonpath(req_json, '$.data'))
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+      - pytest.assume($$$$json_file::18010151728_physics_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume( 200 == req.status_code)
+      - pytest.assume(None != jsonpath(req_json, '$.data'))
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+      - pytest.assume($$$$json_file::18010151728_physics_study_h.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume( 200 == req.status_code)
+      - pytest.assume(None != jsonpath(req_json, '$.data'))
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+      - pytest.assume($$$$json_file::18010151728_biology_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume( 200 == req.status_code)
+      - pytest.assume(None != jsonpath(req_json, '$.data'))
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+      - pytest.assume($$$$json_file::18010151728_biology_study_h.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume($$$$json_file::study_err.json::edit_study_no_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::edit_study_no_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::edit_study_no_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::edit_study_no_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::edit_study_err_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::edit_study_err_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::edit_study_no_param_subjectId_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::edit_study_no_param_subjectId_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.json.title::0$$$$" in jsonpath(req_json, "$.data.title"))
+
+    - - pytest.assume($$$$json_file::study_err.json::edit_study_no_param_attachment_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::edit_study_no_param_attachment_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::edit_study_no_param_content_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::edit_study_no_param_content_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+
+# 复制学案
+duplicate:
+  run:
+  story: 06-导学案复制
+  module_flag: *v6console_moduleflag
+  description:
+    - 【学案流程1】验证复制初中化学学案是否成功
+    - 【学案流程2】验证复制高中化学学案是否成功
+    - 【学案流程3】验证复制初中物理学案是否成功
+    - 【学案流程4】验证复制高中物理学案是否成功
+    - 【学案流程5】验证复制初中生物学案是否成功
+    - 【学案流程6】验证复制高中生物学案是否成功
+    - 验证复制实验学案id传空置，400报错，非法参数
+    - 验证复制实验没有task_id参数，400报错，缺少参数
+    - 验证复制实验id不存在，404报错
+
+  params_type: json
+  host: *v6console_test
+  path: /v1/task/duplicate
+  request_param: &duplicate_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json:
+      #　学案id 必传 整型，定义id变量，依赖于create_study请求响应结果中的data.id
+      task_id: $req_id
+
+  request_params:
+    - <<: *duplicate_params
+    - <<: *duplicate_params
+    - <<: *duplicate_params
+    - <<: *duplicate_params
+    - <<: *duplicate_params
+    - <<: *duplicate_params
+    - <<: *duplicate_params
+      json:
+        task_id: ""
+    - <<: *duplicate_params
+      json:
+    - <<: *duplicate_params
+      json:
+        task_id: "123123adf"
+  response:
+    - <<: *study_file
+      filepath: &chem_m_copy_study 18010151728_chem_m_copy_study.json
+    - <<: *study_file
+      filepath: &chem_h_copy_study 18010151728_chem_h_copy_study.json
+    - <<: *study_file
+      filepath: &phy_m_copy_study 18010151728_phy_m_copy_study.json
+    - <<: *study_file
+      filepath: &phy_h_copy_study 18010151728_phy_h_copy_study.json
+    - <<: *study_file
+      filepath: &bio_m_copy_study 18010151728_bio_m_copy_study.json
+    - <<: *study_file
+      filepath: &bio_h_copy_study 18010151728_bio_h_copy_study.json
+  depends_on:
+    # 依赖登录token，学案id
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *chemistry_h_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *physics_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *physics_h_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *biology_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        case_id: *biology_h_study
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+
+  assert:
+    # 错误请求状态码以及message相关断言来源与study_study.json文件中duplicate相关内容
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("_Copy" in jsonpath(req_json, "$.data.title")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("_Copy" in jsonpath(req_json, "$.data.title")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("_Copy" in jsonpath(req_json, "$.data.title")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("_Copy" in jsonpath(req_json, "$.data.title")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("_Copy" in jsonpath(req_json, "$.data.title")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("_Copy" in jsonpath(req_json, "$.data.title")[0])
+    - - pytest.assume($$$$json_file::study_err.json::duplicate_null_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::duplicate_null_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::duplicate_no_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::duplicate_no_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::duplicate_err_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::duplicate_err_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+# 获取个人学案列表
+study_list:
+  run:
+  story: 07-我创建的(个人资源)导学案列表
+  module_flag: *v6console_moduleflag
+  description:
+    - 【学案流程1】验证查询初中化学学案是否成功
+    - 【学案流程2】验证查询高中化学学案是否成功
+    - 【学案流程3】验证查询初中物理学案是否成功
+    - 【学案流程4】验证查询高中物理学案是否成功
+    - 【学案流程5】验证查询初中生物学案是否成功
+    - 【学案流程6】验证查询高中生物学案是否成功
+    - 验证查询个人学案参数均为空值是否成功
+    - 验证初中化学学案按创建时间排序是否成功
+    - 验证初中化学学案按名称排序是否成功
+    - 验证使用不存在学科查询学案是否查询空数据
+    - 验证使用不存在学段查询学案是否查询空数据
+    - 验证查询无数据学段学案是否查询空数据
+    - 验证通过标题查询学案是否成功
+    - 验证不传参数是否成功
+  params_type: params
+  host: *v6console_test
+  path: /v1/task/my
+  request_param: &study_list_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+
+    params:
+      # 所有参数均为非必填参数
+      # 名称
+      title:
+      # 排序规则，title_initial 标题名称；created_at 创建时间；updated_at 更新使用时间
+      sort:
+      # 学科id，1、物理 2、化学 3、生物
+      subject_id:
+      # 学段，1、小学 2、初中 3、高中
+      grade_phase_id:
+      # 禁止服务器进行强制类型转换
+      json_numeric_check:
+
+  request_params:
+
+    - <<: *study_list_params
+      params:
+        subject_id: 2
+        grade_phase_id: 2
+
+    - <<: *study_list_params
+      params:
+        subject_id: 2
+        grade_phase_id: 3
+    - <<: *study_list_params
+      params:
+        subject_id: 1
+        grade_phase_id: 2
+    - <<: *study_list_params
+      params:
+        subject_id: 1
+        grade_phase_id: 3
+    - <<: *study_list_params
+      params:
+        subject_id: 3
+        grade_phase_id: 2
+    - <<: *study_list_params
+      params:
+        subject_id: 3
+        grade_phase_id: 3
+    - <<: *study_list_params
+    - <<: *study_list_params
+      params:
+        subject_id: 2
+        grade_phase_id: 2
+        sort: created_at
+    - <<: *study_list_params
+      params:
+        subject_id: 2
+        grade_phase_id: 2
+        sort: title_initial
+    - <<: *study_list_params
+      params:
+        subject_id: 5
+        grade_phase_id: 3
+    - <<: *study_list_params
+      params:
+        subject_id: 3
+        grade_phase_id: 9
+    - <<: *study_list_params
+      params:
+        subject_id: 3
+        grade_phase_id: 1
+    - <<: *study_list_params
+      params:
+        title: auto_edit_name
+    - <<: *study_list_params
+      params:
+
+  response:
+    -
+
+  depends_on:
+    # 依赖登录token
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 in jsonpath(req_json, "$._meta.totalCount"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 in jsonpath(req_json, "$._meta.totalCount"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(0 in jsonpath(req_json, "$._meta.totalCount"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.params.title::0$$$$" in jsonpath(req_json, "$.data[*].title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+
+# 个人学案详情
+my_info:
+  run:
+  story: 08-我的(个人资源-)导学案详情
+  #  所属的功能模块组，不同的模块组对应的域名不一样
+  module_flag: *v6console_moduleflag
+  #  case的描述/目的
+  description:
+    - 【学案流程1】验证查看初中化学个人学案详情
+    - 【学案流程2】验证查看高中化学个人学案详情
+    - 【学案流程3】验证查看初中物理个人学案详情
+    - 【学案流程4】验证查看高中物理个人学案详情
+    - 【学案流程5】验证查看初中生物个人学案详情
+    - 【学案流程6】验证查看高中生物个人学案详情
+    - 验证缺少学案id，400报错
+    - 验证查看不存在学案详情，详情内容为空
+    - 验证开启禁止强制类型转换，int类型不会字符串不会强制转换
+    - 验证不传禁止强制类型转换
+  #  设置request_param 下的params 是params 还是data
+  params_type: params
+  #  域名
+  host: *v6console_test
+  path: /v1/task/my-info
+  request_param: &my_info
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+
+    params:
+      # 学案id，必填，定义依赖变量，依赖于create_study请求响应结果中的data.id
+      task_id: $req_id
+      # 禁止服务器进行强制类型转换
+      json_numeric_check: 0
+
+  #  请求参数
+  request_params:
+    - <<: *my_info
+    - <<: *my_info
+    - <<: *my_info
+    - <<: *my_info
+    - <<: *my_info
+    - <<: *my_info
+    - <<: *my_info
+      params:
+        json_numeric_check: 0
+    - <<: *my_info
+      params:
+        task_id: 000
+        json_numeric_check: 0
+    - <<: *my_info
+      params:
+        task_id: $req_id
+        json_numeric_check: 1
+    - <<: *my_info
+      params:
+        task_id: $req_id
+  #  响应结果的处理
+  response:
+    -
+    #  依赖的数据
+  depends_on:
+    #  断言依赖登录token以及创建学案id
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *chemistry_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *chemistry_h_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *physics_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *physics_h_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *biology_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *biology_h_study
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *chemistry_m_study
+    - - <<: *token_depends
+      - <<: *study_depend
+        cast_id: *chemistry_m_study
+
+  assert:
+    #    一个case里的多重断言示例
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("auto_edit_name" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("auto_edit_name" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("auto_edit_name" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("auto_edit_name" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("auto_edit_name" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("auto_edit_name" in jsonpath(req_json, "$.data.title"))
+    - - pytest.assume($$$$json_file::study_err.json::my_info_no_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::my_info_no_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume( None in jsonpath(req_json, "$.data"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+
+# 创建班级
+create_class:
+  run:
+  story: 09-【业务流程前置条件】-创建班级-发作业、做作业、查看学生列表等功能使用
+  module_flag: *v6console_moduleflag
+  description:
+    - 【业务流程前置条件】-老师创建初中化学班级
+    - 【业务流程前置条件】-老师创建高中化学班级
+    - 【业务流程前置条件】-老师创建初中物理班级
+    - 【业务流程前置条件】-老师创建高中物理班级
+    - 【业务流程前置条件】-老师创建初中生物班级
+    - 【业务流程前置条件】-老师创建高中生物班级
+    - 【业务流程前置条件】-学生账号创建个初中化学班级
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/create
+  request_param: &create_class_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json: &create_class
+      name: yhh_create_class
+      subject_id: 2
+      grade_phase_id: 2
+
+  request_params:
+    - <<: *create_class_params
+    - <<: *create_class_params
+      json:
+        <<: *create_class
+        grade_phase_id: 3
+    - <<: *create_class_params
+      json:
+        <<: *create_class
+        grade_phase_id: 2
+        subject_id: 1
+    - <<: *create_class_params
+      json:
+        <<: *create_class
+        grade_phase_id: 3
+        subject_id: 1
+    - <<: *create_class_params
+      json:
+        <<: *create_class
+        grade_phase_id: 2
+        subject_id: 3
+    - <<: *create_class_params
+      json:
+        <<: *create_class
+        grade_phase_id: 3
+        subject_id: 3
+    - <<: *create_class_params
+      json:
+        <<: *create_class
+        name: stu_class_name
+
+  response:
+    - &class_resp
+      filepath: &chemistry_m_class 18010151728_chemistry_m_class.json
+      resp_keys: [ $.data.id, $.data.class_no, $.data.created_at ]
+      keys: [ classid_resp, classno_resp, create_time_resp ]
+    - <<: *class_resp
+      filepath: &chemistry_h_class 18010151728_chemistry_h_class.json
+    - <<: *class_resp
+      filepath: &physics_m_class 18010151728_physics_m_class.json
+    - <<: *class_resp
+      filepath: &physics_h_class 18010151728_physics_h_class.json
+    - <<: *class_resp
+      filepath: &biology_m_class 18010151728_biology_m_class.json
+    - <<: *class_resp
+      filepath: &biology_h_class 18010151728_biology_h_class.json
+    - <<: *class_resp
+      filepath: &student_class 18600561778_student_class.json
+
+  depends_on:
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+    - <<: *token_depends
+      case_id: *stu_token
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.name$$$$ == jsonpath(req_json, "$.data.name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.name$$$$ == jsonpath(req_json, "$.data.name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.name$$$$ == jsonpath(req_json, "$.data.name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.name$$$$ == jsonpath(req_json, "$.data.name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.name$$$$ == jsonpath(req_json, "$.data.name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.name$$$$ == jsonpath(req_json, "$.data.name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.name$$$$ == jsonpath(req_json, "$.data.name"))
+
+# 学生加入班级
+join_class:
+  run:
+  story: 10-【业务流程前置条件】-学生加入班级-导学案做作业，班级学生列表等功能使用
+  module_flag: *v6console_moduleflag
+  description:
+    - 【业务流程前置条件】-学生加入初中化学班级
+    - 【业务流程前置条件】-学生加入高中化学班级
+    - 【业务流程前置条件】-学生加入初中物理班级
+    - 【业务流程前置条件】-学生加入高中物理班级
+    - 【业务流程前置条件】-学生加入初中生物班级
+    - 【业务流程前置条件】-学生加入高中生物班级
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/stu-join
+  request_param: &stu_join_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json: &stu_join
+      class_no: $class_no
+      subject_id: 2
+      stu_name: 袁欢欢加入班级
+
+  request_params:
+    - <<: *stu_join_params
+    - <<: *stu_join_params
+    - <<: *stu_join_params
+      json:
+        <<: *stu_join
+        subject_id: 1
+    - <<: *stu_join_params
+      json:
+        <<: *stu_join
+        subject_id: 1
+    - <<: *stu_join_params
+      json:
+        <<: *stu_join
+        subject_id: 3
+    - <<: *stu_join_params
+      json:
+        <<: *stu_join
+        subject_id: 3
+
+  response:
+    -
+  depends_on:
+    - - &stu_token_depends
+        <<: *token_depends
+        case_id: *stu_token
+      - &join_depends
+        online: False
+        type: response
+        case_id: *chemistry_m_class
+        depend_key: [ classno_resp ]
+        replace_key: [ class_no ]
+    - - <<: *stu_token_depends
+      - <<: *join_depends
+        case_id: *chemistry_h_class
+    - - <<: *stu_token_depends
+      - <<: *join_depends
+        case_id: *physics_m_class
+    - - <<: *stu_token_depends
+      - <<: *join_depends
+        case_id: *physics_h_class
+    - - <<: *stu_token_depends
+      - <<: *join_depends
+        case_id: *biology_m_class
+    - - <<: *stu_token_depends
+      - <<: *join_depends
+        case_id: *biology_h_class
+
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.stu_name$$$$ == jsonpath(req_json, "$.data.stu_name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.stu_name$$$$ == jsonpath(req_json, "$.data.stu_name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.stu_name$$$$ == jsonpath(req_json, "$.data.stu_name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.stu_name$$$$ == jsonpath(req_json, "$.data.stu_name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.stu_name$$$$ == jsonpath(req_json, "$.data.stu_name"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.json.stu_name$$$$ == jsonpath(req_json, "$.data.stu_name"))
+
+# 获取精品学案
+resource_study_list:
+  run:
+  story: 11-【业务流程前置条件】-精品资源-学案列表，发布精品学案，接口请求前需确保物化生各学段均存在已发布状态学案
+  module_flag: *v6console_moduleflag
+  description:
+    - 【业务流程前置条件】-查询初中化学精品学案
+    - 【业务流程前置条件】-查询高中化学精品学案
+    - 【业务流程前置条件】-查询初中物理精品学案
+    - 【业务流程前置条件】-查询高中物理精品学案
+    - 【业务流程前置条件】-查询初中生物精品学案
+    - 【业务流程前置条件】-查询高中生物精品学案
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/index
+  request_param: &resource_list_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+
+    params: &resource_list
+      actionType: 200
+      subjectId: 2
+      gradePhase: 2
+
+  request_params:
+    - <<: *resource_list_params
+    - <<: *resource_list_params
+      params:
+        <<: *resource_list
+        gradePhase: 3
+    - <<: *resource_list_params
+      params:
+        <<: *resource_list
+        subjectId: 1
+        gradePhase: 2
+    - <<: *resource_list_params
+      params:
+        <<: *resource_list
+        subjectId: 1
+        gradePhase: 3
+    - <<: *resource_list_params
+      params:
+        <<: *resource_list
+        subjectId: 3
+        gradePhase: 2
+    - <<: *resource_list_params
+      params:
+        <<: *resource_list
+        subjectId: 3
+        gradePhase: 3
+
+  response:
+    #　发布学案时，存在发布精品学案，接口请求后存储学案id以及contents
+    - filepath: &chemistry_m_quality_study chemistry_m_quality_study.json
+      resp_keys: [ "$.data[0].id", "$.data[0].contents" ]
+      keys: [ studyid_resp, contents_resp ]
+    - filepath: &chemistry_h_quality_study chemistry_h_quality_study.json
+      resp_keys: [ "$.data[0].id", "$.data[0].contents" ]
+      keys: [ studyid_resp, contents_resp ]
+    - filepath: &physics_m_quality_study physics_m_quality_study.json
+      resp_keys: [ "$.data[0].id", "$.data[0].contents" ]
+      keys: [ studyid_resp, contents_resp ]
+    - filepath: &physics_h_quality_study physics_h_quality_study.json
+      resp_keys: [ "$.data[0].id", "$.data[0].contents" ]
+      keys: [ studyid_resp, contents_resp ]
+    - filepath: &biology_m_quality_study biology_m_quality_study.json
+      resp_keys: [ "$.data[0].id", "$.data[0].contents" ]
+      keys: [ studyid_resp, contents_resp ]
+    - filepath: &biology_h_quality_study biology_h_quality_study.json
+      resp_keys: [ "$.data[0].id", "$.data[0].contents" ]
+      keys: [ studyid_resp, contents_resp ]
+  depends_on:
+    -
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.params.actionType::0$$$$ in jsonpath(req_json, "$.data[*].actionType"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.params.actionType::0$$$$ in jsonpath(req_json, "$.data[*].actionType"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.params.actionType::0$$$$ in jsonpath(req_json, "$.data[*].actionType"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.params.actionType::0$$$$ in jsonpath(req_json, "$.data[*].actionType"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.params.actionType::0$$$$ in jsonpath(req_json, "$.data[*].actionType"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$req_param::$.params.actionType::0$$$$ in jsonpath(req_json, "$.data[*].actionType"))
+
+# 发布学案
+publish_study:
+  run:
+  story: 12-发布导学案
+  module_flag: *v6console_moduleflag
+  description:
+    - 【作业流程1-1】验证发布进行中初中化学学案是否成功
+    - 【作业流程2-1】验证发布进行中高中化学学案是否成功
+    - 【作业流程3-1】验证发布进行中初中物理学案是否成功
+    - 【作业流程4-1】验证发布进行中高中物理学案是否成功
+    - 【作业流程5-1】验证发布进行中初中生物学案是否成功
+    - 【作业流程6-1】验证发布进行中高中生物学案是否成功
+    - 【作业流程7-1】验证发布进行中初中化学精品学案是否成功
+    - 【作业流程8-1】验证发布进行中高中化学精品学案是否成功
+    - 【作业流程9-1】验证发布进行中初中物理精品学案是否成功
+    - 【作业流程10-1】验证发布进行中高中物理精品学案是否成功
+    - 【作业流程11-1】验证发布进行中初中生物精品学案是否成功
+    - 【作业流程12-1】验证发布进行中高中生物精品学案是否成功
+    #    - 【作业流程13-1】验证发布已过期学案是否成功
+    - 【作业流程14-1】验证发布未开始学案是否成功
+    - 【作业流程15-1】验证发布学案增加标题字段是否成功
+    - 【作业流程16-1】验证发布学案公开字段为-100，学案状态为进行中是否成功
+    - 【作业流程17-1】验证发布学案公开字段为-100，学案状态为未开始是否成功
+    #    - 【作业流程18-1】验证发布学案公开字段为-100，学案状态为已结束是否成功
+    - 【作业流程19-1】验证发布学案公开字段为200学案状态为进行中是否成功
+    - 【作业流程20-1】验证发布学案公开字段为200学案状态为未开始是否成功
+    #    - 【作业流程21-1】验证发布学案公开字段为200学案状态为已结束是否成功
+    - 验证发布学案公开字段使用非固定值，400报错，在19处理完成后增加提示信息校验
+    - 验证发布精品学案标题为空是否成功，为null时，使用默认名称作为标题
+    #    - 验证发布精品学案标题为空字符串，是否正常创建
+    - 验证发布精品学案不传标题，是否成功
+    #    - 验证发布学案不传任何参数，是否报错
+    - 验证发布学案，结束时间小于开始时间
+    #    - 验证发布学案，不传开始时间，422错误
+    #    - 验证发布学案，开始时间传空值，422错误
+    #    - 验证发布学案，开始时间传空字符串，422错误
+    #    - 验证发布学案，开始时间传非数字字符串，400错误，开始时间 must be an integer
+    #    - 验证发布学案，不传结束时间，422错误
+    #    - 验证发布学案，结束时间传空值，422错误
+    - 验证发布学案，结束时间传空字符串，422错误
+    - 验证发布学案，结束时间传非数字字符串，400错误，过期时间 must be an integer
+    #    - 验证发布学案，开始时间早于当前五分钟，使用2022年8月29日时间戳 1661762690，400错误，开始时间不能早于当前时间
+    - 验证发布学案，不传班级id，422错误
+    - 验证发布学案，班级id传空，422错误
+    - 验证发布学案，班级id传空数组，422错误
+    - 验证发布学案，班级id传非数字字符串数组，当前400，班级[id=ijhuy]不存在或无权限执行此操作
+    - 验证发布学案，班级id不使用数组，当前200
+    - 验证发布学案，不传学案id，422错误
+    - 验证发布学案，学案id传空，422错误
+    - 验证发布学案，学案id传空字符串，422错误
+    - 验证发布学案，学案id传非数字字符串，404，学案-不存在
+    - 验证发布学案，不传公开状态，422错误
+    - 验证化学班级发布物理学科学案，400错误，学科不匹配
+    - 验证将学案发布到他人创建班级，400报错
+    - 验证将他人学案发布到自己的班级，404报错，学案-不属于当前用户
+    - 验证作业发布个数是否限制
+
+  params_type: json
+  host: *v6console_test
+  path: /v1/task/publish
+  request_param: &publish_study_params
+    url: $url
+    method: post
+    headers: &headers
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json: &publish_study
+      # 学案id 非必须，当使用精品学案进行发布学案操作时，该id使用精品学案content字段，其他情况id使用创建学案id
+      task_id: $study_id
+      # 班级id，非必须，数组，定于class_id变量，依赖创建班级接口响应结果中的data.id
+      class_id: [ $class_id ]
+      # 开始时间，非必须，按秒计算的时间戳，后端对时间戳进行了校验，当前时间五分钟，进行中状态下使用创建学案存储时间，未开始使用2023年8月29日
+      started_at: $start_time
+      # 结束时间，非必须，按秒计算的时间戳，进行中状态下使用2024年8月26日某个时间点，已结束使用创建班级存储时间
+      expired_at: &end_time 1724656612
+      # 公开字段，非必须，-100不公开，100，提交后学生可见，200结束后学生可见
+      open_book: 100
+      # 学案标题，非必须，默认为空，不为空时，发布学案时同时修改学案名称，当发布精品学案时，title必填，且创建相应名称学案
+      title:
+
+  request_params:
+    - <<: *publish_study_params
+    - <<: *publish_study_params
+    - <<: *publish_study_params
+    - <<: *publish_study_params
+    - <<: *publish_study_params
+    - <<: *publish_study_params
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        title: 自动发布精品学案
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        title: 自动发布精品学案
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        title: 自动发布精品学案
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        title: 自动发布精品学案
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        title: 自动发布精品学案
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        title: 自动发布精品学案
+    # 发布学案，发布后为已结束状态，使用创建班级时的创建时间作为结束时间
+    # 2022-11-22 班级作业发布逻辑变更，注释掉请求异常case
+    #    - <<: *publish_study_params
+    #      json:
+    #        <<: *publish_study
+    #        expired_at: $end_time
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        started_at: &start_time 1693293196
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        title: 普通学案增加标题
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        open_book: -100
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        open_book: -100
+        started_at: *start_time
+    #    - <<: *publish_study_params
+    #      json:
+    #        <<: *publish_study
+    #        open_book: -100
+    #        expired_at: $end_time
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        open_book: 200
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        open_book: 200
+        started_at: *start_time
+    #    - <<: *publish_study_params
+    #      json:
+    #        <<: *publish_study
+    #        open_book: 200
+    #        expired_at: $end_time
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        open_book: 400
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+    #    - <<: *publish_study_params
+    #      json:
+    #        <<: *publish_study
+    #        title: ""
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        task_id: $study_id
+        class_id: [ $class_id ]
+        started_at: $start_time
+        expired_at: *end_time
+        open_book: 100
+    #    - <<: *publish_study_params
+    #      json: ~
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        expired_at: $end_time
+    #    - <<: *publish_study_params
+    #      json:
+    #        task_id: $study_id
+    #        class_id: [ $class_id ]
+    #        expired_at: *end_time
+    #        open_book: 100
+    #        title:
+    #    - <<: *publish_study_params
+    #      json:
+    #        <<: *publish_study
+    #        started_at:
+    #    - <<: *publish_study_params
+    #      json:
+    #        <<: *publish_study
+    #        started_at: ""
+    #    - <<: *publish_study_params
+    #      json:
+    #        <<: *publish_study
+    #        started_at: "lisi"
+    #    - <<: *publish_study_params
+    #      json:
+    #        task_id: $study_id
+    #        class_id: [ $class_id ]
+    #        started_at: $start_time
+    #        open_book: 100
+    #        title:
+    #    - <<: *publish_study_params
+    #      json:
+    #        task_id: $study_id
+    #        class_id: [ $class_id ]
+    #        started_at: $start_time
+    #        open_book: 100
+    #        title:
+    #        expired_at:
+    - <<: *publish_study_params
+      json:
+        task_id: $study_id
+        class_id: [ $class_id ]
+        started_at: $start_time
+        open_book: 100
+        title:
+        expired_at: ""
+    - <<: *publish_study_params
+      json:
+        task_id: $study_id
+        class_id: [ $class_id ]
+        started_at: $start_time
+        open_book: 100
+        title:
+        expired_at: "jhihk"
+    #    - <<: *publish_study_params
+    #      json:
+    #        task_id: $study_id
+    #        started_at: 1661762690
+    #        expired_at: *end_time
+    #        open_book: 100
+    #        class_id: [ $class_id ]
+    #        title:
+    - <<: *publish_study_params
+      json:
+        task_id: $study_id
+        started_at: $start_time
+        expired_at: *end_time
+        open_book: 100
+        title:
+    - <<: *publish_study_params
+      json:
+        task_id: $study_id
+        started_at: $start_time
+        expired_at: *end_time
+        open_book: 100
+        title:
+        class_id:
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        class_id: [ ]
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        class_id: [ "ijhuy" ]
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        class_id: $class_id
+    - <<: *publish_study_params
+      json:
+
+        started_at: $start_time
+        expired_at: *end_time
+        open_book: 100
+        class_id: [ $class_id ]
+        title:
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        task_id:
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+        task_id: ""
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+    - <<: *publish_study_params
+      json:
+        task_id: $study_id
+        class_id: [ $class_id ]
+        started_at: $start_time
+        expired_at: *end_time
+        title:
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+    - <<: *publish_study_params
+      json:
+        <<: *publish_study
+    # 2022年12月7日，增加作业个数校验
+    - <<: *publish_study_params
+      headers:
+        <<: *headers
+        Accept: 'application/json, */*; version=huaxue_v3.5.5'
+
+  response:
+    # 发布学案后，存储发布学案的id、班级id以及学案id
+    - &homework
+      filepath: &chemistry_m_homework 18010151728_chemistry_m_homework.json
+      resp_keys: [ $.data.id, $.data.class_id, $.data.task_id ]
+      keys: [ id_resp, classids_resp, taskid_resp ]
+    - <<: *homework
+      filepath: &chemistry_h_homework 18010151728_chemistry_h_homework.json
+    - <<: *homework
+      filepath: &physics_m_homework 18010151728_physics_m_homework.json
+    - <<: *homework
+      filepath: &physics_h_homework 18010151728_physics_h_homework.json
+    - <<: *homework
+      filepath: &biology_m_homework 18010151728_biology_m_homework.json
+    - <<: *homework
+      filepath: &biology_h_homework 18010151728_biology_h_homework.json
+    - <<: *homework
+      filepath: &chemistry_m_quality_homework 18010151728_chemistry_m_quality_homework.json
+    - <<: *homework
+      filepath: &chemistry_h_quality_homework 18010151728_chemistry_h_quality_homework.json
+    - <<: *homework
+      filepath: &physics_m_quality_homework 18010151728_physics_m_quality_homework.json
+    - <<: *homework
+      filepath: &physics_h_quality_homework 18010151728_physics_h_quality_homework.json
+    - <<: *homework
+      filepath: &biology_m_quality_homework 18010151728_biology_m_quality_homework.json
+    - <<: *homework
+      filepath: &biology_h_quality_homework 18010151728_biology_h_quality_homework.json
+    #    - <<: *homework
+    #      filepath: &end_homework 18010151728_end_homework.json
+    - <<: *homework
+      filepath: &no_start_homework 18010151728_no_start_homework.json
+    - <<: *homework
+      filepath: &use_title_homework 18010151728_use_title_homework.json
+    - <<: *homework
+      filepath: &no_open_homework 18010151728_no_open_homework.json
+    - <<: *homework
+      filepath: &no_open_start_homework 18010151728_no_open_start_homework.json
+
+  #    - <<: *homework
+  #      filepath: &no_open_end_homework 18010151728_no_open_end_homework.json
+  #    - <<: *homework
+  #      filepath: &end_open_homework 18010151728_end_open_homework.json
+  #    - <<: *homework
+  #      filepath: &end_open_start_homework 18010151728_end_open_homework.json
+  #    - <<: *homework
+  #      filepath: &end_open_end_homework 18010151728_end_open_homework.json
+  depends_on:
+    # 依赖于登录token，创建学案id、创建时间，创建班级id、创建时间等
+    # 发布普通学案，依赖于登录token、创建学案id、创建时间、创建班级id
+    - - <<: *token_depends
+      - &class_depends
+        <<: *token_depends
+        case_id: *chemistry_m_class
+        depend_key: [ classid_resp ]
+        replace_key: [ class_id ]
+      - &class_study_depend
+        <<: *study_depend
+        case_id: *chemistry_m_study
+        depend_key: [ studyid_resp, resp_time ]
+        replace_key: [ study_id, start_time ]
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *chemistry_h_class
+      - <<: *class_study_depend
+        case_id: *chemistry_h_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *physics_m_class
+      - <<: *class_study_depend
+        case_id: *physics_m_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *physics_h_class
+      - <<: *class_study_depend
+        case_id: *physics_h_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *biology_m_class
+      - <<: *class_study_depend
+        case_id: *biology_m_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *biology_h_class
+      - <<: *class_study_depend
+        case_id: *biology_h_study
+    # 发布精品学案，依赖于登录token，创建学案时间，创建班级id，获取精品content
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *chemistry_m_class
+      - &quality_study_id_depend
+        <<: *class_study_depend
+        case_id: *chemistry_m_quality_study
+        depend_key: [ contents_resp ]
+        replace_key: [ study_id ]
+      - &quality_study_start_time_depend
+        <<: *class_study_depend
+        case_id: *chemistry_m_study
+        depend_key: [ resp_time ]
+        replace_key: [ start_time ]
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *chemistry_h_class
+      - <<: *quality_study_start_time_depend
+        case_id: *chemistry_h_study
+      - <<: *quality_study_id_depend
+        case_id: *chemistry_h_quality_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *physics_m_class
+      - <<: *quality_study_start_time_depend
+        case_id: *physics_m_study
+      - <<: *quality_study_id_depend
+        case_id: *physics_m_quality_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *physics_h_class
+      - <<: *quality_study_start_time_depend
+        case_id: *physics_h_study
+      - <<: *quality_study_id_depend
+        case_id: *physics_h_quality_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *biology_m_class
+      - <<: *quality_study_start_time_depend
+        case_id: *biology_m_study
+      - <<: *quality_study_id_depend
+        case_id: *biology_m_quality_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *biology_h_class
+      - <<: *quality_study_start_time_depend
+        case_id: *biology_h_study
+      - <<: *quality_study_id_depend
+        case_id: *biology_h_quality_study
+    # 已过期
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #        case_id: *chemistry_m_class
+    #        depend_key: [ classid_resp, create_time_resp ]
+    #        replace_key: [ class_id, end_time ]
+    #      - <<: *class_study_depend
+    # 未开始
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        depend_key: [ studyid_resp ]
+        replace_key: [ study_id ]
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        depend_key: [ studyid_resp ]
+        replace_key: [ study_id ]
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #        case_id: *chemistry_m_class
+    #        depend_key: [ classid_resp, create_time_resp ]
+    #        replace_key: [ class_id, end_time ]
+    #      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        depend_key: [ studyid_resp ]
+        replace_key: [ study_id ]
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #        case_id: *chemistry_m_class
+    #        depend_key: [ classid_resp, create_time_resp ]
+    #        replace_key: [ class_id, end_time ]
+    #      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *chemistry_m_class
+      - <<: *quality_study_start_time_depend
+      - <<: *quality_study_id_depend
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #        case_id: *chemistry_m_class
+    #      - <<: *quality_study_start_time_depend
+    #      - <<: *quality_study_id_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *chemistry_m_class
+      - <<: *quality_study_start_time_depend
+      - <<: *quality_study_id_depend
+    #    - - <<: *token_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *chemistry_m_class
+        depend_key: [ classid_resp, create_time_resp ]
+        replace_key: [ class_id, start_time ]
+      - <<: *class_study_depend
+        replace_key: [ study_id, end_time ]
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #      - <<: *class_study_depend
+    #        depend_key: [ studyid_resp ]
+    #        replace_key: [ study_id ]
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #      - <<: *class_study_depend
+    #        depend_key: [ studyid_resp ]
+    #        replace_key: [ study_id ]
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #      - <<: *class_study_depend
+    #        depend_key: [ studyid_resp ]
+    #        replace_key: [ study_id ]
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #      - <<: *class_study_depend
+    #        depend_key: [ studyid_resp ]
+    #        replace_key: [ study_id ]
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #      - <<: *class_study_depend
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+    #    - - <<: *token_depends
+    #      - <<: *class_depends
+    #      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_study_depend
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        depend_key: [ resp_time ]
+        replace_key: [ start_time ]
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        depend_key: [ resp_time ]
+        replace_key: [ start_time ]
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        depend_key: [ resp_time ]
+        replace_key: [ start_time ]
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        depend_key: [ resp_time ]
+        replace_key: [ start_time ]
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+    - - <<: *token_depends
+      - <<: *class_depends
+      - <<: *class_study_depend
+        case_id: *physics_h_study
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *student_class
+      - <<: *class_study_depend
+
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+        case_id: *student_class
+      - <<: *class_study_depend
+
+    # 2022年12月7日增加发布作业个数限制
+    - - <<: *token_depends
+      - <<: *class_depends
+      #        case_id: *physics_m_class
+      - <<: *class_study_depend
+  #        case_id: *physics_m_study
+
+  assert:
+    # 发布学案
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_h_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_h.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_physics_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_h_class.json::classid_resp$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_physics_study_h.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_biology_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_h_class.json::classid_resp$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_biology_study_h.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    # 发布精品学案
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_h_class.json::classid_resp$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_h_class.json::classid_resp$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_h_class.json::classid_resp$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    # 过期学案
+    #    - - pytest.assume(200 == req.status_code)
+    #      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    #      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    # 未开始学案
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    # 个人学案添加精品学案
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    # 校验公开字段
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    #    - - pytest.assume(200 == req.status_code)
+    #      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    #      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    #    - - pytest.assume(200 == req.status_code)
+    #      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    #      - pytest.assume($$$$json_file::18010151728_chemistry_study_m.json::studyid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+
+
+    - - pytest.assume(400 == req.status_code)
+
+    # 学案标题
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$,data.class_id")[0])
+    #    - - pytest.assume(200 == req.status_code)
+    #      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$,data.class_id")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data.class_id")[0])
+    # 不传任何参数
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_end_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_end_time_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+
+    #    # 结束时间小于开始时间
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_err_param_time_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_err_param_time_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    # 开始时间
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_start_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_start_time_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_start_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_start_time_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_start_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_start_time_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_err_param_start_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_err_param_start_time_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    # 结束时间
+
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_end_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_end_time_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_end_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_end_time_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_end_time_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_end_time_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_err_param_end_time_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_err_param_end_time_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    # 开始时间早于当前5分钟
+    #    - - pytest.assume($$$$json_file::study_err.json::publish_study_before_now_start_time_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::publish_study_before_now_start_time_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    # 班级id
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_class_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_class_id_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_class_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_class_id_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_class_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_class_id_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+
+
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_err_param_class_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_err_param_class_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail")[0])
+    - - pytest.assume(200 == req.status_code)
+      - 'pytest.assume([] in jsonpath(req_json, "$.data.class_id"))'
+    # 学案id
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_task_id_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_null_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_null_param_task_id_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_null_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_null_param_task_id_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_err_param_task_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_err_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    # 不传公开状态
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_no_param_open_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_no_param_open_message$$$$" in jsonpath(req_json, "$.data[*].message"))
+
+    # 学科、班级、学案不匹配类
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_err_class_subject_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_err_class_subject_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_other_class_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_other_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail")[0])
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_other_study_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_other_study_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+    # 作业个数限制
+    - - pytest.assume($$$$json_file::study_err.json::publish_study_num_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::publish_study_num_message$$$$" in jsonpath(req_json, "$.data.manual_detail")[0])
+
+
+# 班级学案列表
+class_study_list:
+  run:
+  story: 13-我加入的/我创建的班级导学案列表
+  module_flag: *v6console_moduleflag
+  description:
+    - 验证初中化学班级学案列表是否获取成功
+    - 验证高中化学班级学案列表是否获取成功
+    - 验证初中物理班级学案列表是否获取成功
+    - 验证高中物理班级学案列表是否成功
+    - 验证初中生物班级学案列表是否成功
+    - 验证高中生物班级学案列表是否成功
+    - 验证学生初中化学班级学案列表是否获取成功
+    - 验证学生高中化学班级学案列表是否获取成功
+    - 验证学生初中物理班级学案列表是否获取成功
+    - 验证学生高中物理班级学案列表是否成功
+    - 验证学生初中生物班级学案列表是否成功
+    - 验证学生高中生物班级学案列表是否成功
+    - 验证查询未加入班级学案列表,403错误，没有权限查看该班级的学案
+    - 验证不传班级id，403错误，没有权限查看该班级的学案
+    - 验证班级id传空值，403错误，没有权限查看该班级的学案
+    #    - 验证不传班级id，400错误，缺少参数：class_id
+    #    - 验证班级id传空值，400错误，缺少参数：class_id
+    - 验证班级id传空字符串，403错误，没有权限查看该班级的学案
+    - 验证班级id传空数组，403错误，没有权限查看该班级的学案
+    #    - 验证班级id传空数组，400错误，缺少参数：class_id
+    - 验证班级id传字符传，403错误，没有权限查看该班级的学案
+    - 验证班级id传数组是否成功
+    - 验证通过学案标题查询列表是否成功
+    - 验证不传标题是否成功
+    - 验证标题传空值是否成功
+    - 验证按创建时间排序是否成功
+    - 按照按更新时间排序是否成功
+    - 验证按名称排序，500报错
+    - 验证排序字段传其他值是否成功
+    - 验证排序字段为空是否成功
+
+    - 验证学科与班级不一致（物理学科查询化学班级）是否查询空数据
+    - 验证禁止服务器转换是否成功
+    - 验证开启服务器转换是否成功
+    - 验证不传禁止字段是否成功
+    - 验证禁止字段传其他值是否成功
+  params_type: params
+  host: *v6console_test
+  path: /v1/task/list
+  request_param: &class_study_list_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params: &class_study_list
+      # 班级id 必须
+      class_id: $class_id
+      # 学案标题
+      title:
+      # 排序规则 title_initial,created_at,updated_at，默认updated_at
+      sort:
+      # 课程id，必须
+      subject_id: 2
+      # 禁止强制转换，1为禁止，0为允许
+      json_numeric_check: 0
+
+  request_params:
+    - <<: *class_study_list_params
+    - <<: *class_study_list_params
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 1
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 1
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 3
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 3
+    - <<: *class_study_list_params
+    - <<: *class_study_list_params
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 1
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 1
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 3
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 3
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+    - <<: *class_study_list_params
+      params:
+        title:
+        sort:
+        subject_id: 2
+        json_numeric_check: 0
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        class_id: ~
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        class_id: ""
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        class_id: []
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        class_id: "初中一班"
+
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        class_id:
+          - $class_id
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        title: auto_edit_name
+    - <<: *class_study_list_params
+      params:
+        class_id: $class_id
+        sort:
+        subject_id: 2
+        json_numeric_check: 0
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        title:
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        sort: created_at
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        sort: updated_at
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        sort: title_initial
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        sort: 12
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        sort:
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        subject_id: 1
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        json_numeric_check: 1
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        json_numeric_check: 0
+    - <<: *class_study_list_params
+      params:
+        class_id: $class_id
+        title:
+        subject_id: 2
+        json_numeric_check: 0
+    - <<: *class_study_list_params
+      params:
+        <<: *class_study_list
+        json_numeric_check: 3
+
+
+  response: ~
+  depends_on:
+    # 如下所示:当前接口依赖于token和classcreate创建时返回的班级id
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *chemistry_h_class
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *physics_m_class
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *physics_h_class
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *biology_m_class
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *biology_h_class
+
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+        case_id: *chemistry_h_class
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+        case_id: *physics_m_class
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+        case_id: *physics_h_class
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+        case_id: *biology_m_class
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+        case_id: *biology_h_class
+    - - <<: *token_depends
+      - <<: *class_depends
+        case_id: *student_class
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+      - <<: *class_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_depends
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_h_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_h_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_h_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_h_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_h_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_h_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume($$$$json_file::study_err.json::class_study_list_other_class_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::class_staty_list_other_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    - - pytest.assume($$$$json_file::study_err.json::class_study_list_no_param_class_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::class_study_list_no_param_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    - - pytest.assume($$$$json_file::study_err.json::class_study_list_null_param_class_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::class_study_list_null_param_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    - - pytest.assume($$$$json_file::study_err.json::class_study_list_string_param_class_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::class_study_list_string_param_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    - - pytest.assume($$$$json_file::study_err.json::class_study_list_null_list_param_class_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::class_study_list_null_list_param_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    - - pytest.assume($$$$json_file::study_err.json::class_study_list_string_param_class_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::class_study_list_string_param_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume(200 == req.status_code)
+    - - pytest.assume(200 == req.status_code)
+    - - pytest.assume(200 == req.status_code)
+    - - pytest.assume(200 == req.status_code)
+    - - pytest.assume(200 == req.status_code)
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("$$$$req_param::$.params.title::[0]$$$$" in jsonpath(req_json, "$.data[*].title"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(500 == req.status_code)
+    #      - pytest.assume(0 < jsonpath(req_json, "$._meta.totalCount")[0])
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::id_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+
+class_study_info:
+  run:
+  story: 14-我加入的/创建的班级导学案详情
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 老师查询班级学案详情是否成功
+    - 学生查询班级学案详情是否成功
+    - 班级id与学案id不匹配
+    - 班级学案id与班级学案、学案不一致
+    - 学案与班级学案id、班级不一致
+    - 不传学案id，400报错，缺少task_id
+    - 不传班级id,400报错，缺少class_id
+    - 不传班级学案id，400报错，缺少map_id
+    - 不传强制转换字段，必须字段，当前请求成功
+  #  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/task/info
+  request_param: &class_study_info_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params: &class_study_info
+      # 学案id，必填
+      task_id: $study_id
+      # 班级id：必填
+      class_id: $class_id
+      # 班级学案id
+      map_id: $class_study_id
+      # 禁止服务器类型转换
+      json_numeric_check: 0
+  # 请求参数
+  request_params:
+    - <<: *class_study_info_params
+    - <<: *class_study_info_params
+    - <<: *class_study_info_params
+    - <<: *class_study_info_params
+    - <<: *class_study_info_params
+    - <<: *class_study_info_params
+      params:
+        class_id: $class_id
+        map_id: $class_study_id
+        json_numeric_check: 0
+    - <<: *class_study_info_params
+      params:
+        task_id: $study_id
+        map_id: $class_study_id
+        json_numeric_check: 0
+    - <<: *class_study_info_params
+      params:
+        task_id: $study_id
+        class_id: $class_id
+        json_numeric_check: 0
+    - <<: *class_study_info_params
+      params:
+        task_id: $study_id
+        class_id: $class_id
+        map_id: $class_study_id
+  #  响应结果的处理
+  response:
+  #  数据依赖的处理
+  depends_on:
+    - - <<: *token_depends
+      - &class_study_info_depends
+        <<: *token_depends
+        case_id: *chemistry_m_homework
+        depend_key: [ taskid_resp, id_resp ]
+        replace_key: [ study_id, class_study_id ]
+      - &class_study_class_depends
+        <<: *class_study_info_depends
+        case_id: *chemistry_m_class
+        depend_key: [ classid_resp ]
+        replace_key: [ class_id ]
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_study_info_depends
+      - <<: *class_study_class_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_study_info_depends
+      - <<: *class_study_class_depends
+        case_id: *chemistry_h_class
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *token_depends
+        case_id: *chemistry_h_homework
+        depend_key: [ id_resp ]
+        replace_key: [ class_study_id ]
+      - <<: *class_study_info_depends
+        depend_key: [ taskid_resp ]
+        replace_key: [ study_id ]
+      - <<: *class_study_class_depends
+        case_id: *chemistry_m_class
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *class_study_info_depends
+        depend_key: [ id_resp ]
+        replace_key: [ class_study_id ]
+      - <<: *class_study_info_depends
+        case_id: *chemistry_h_study
+        depend_key: [ studyid_resp ]
+        replace_key: [ study_id ]
+      - <<: *class_study_class_depends
+        case_id: *chemistry_m_class
+    - - <<: *token_depends
+      - <<: *class_study_info_depends
+      - <<: *class_study_class_depends
+    - - <<: *token_depends
+      - <<: *class_study_info_depends
+      - <<: *class_study_class_depends
+    - - <<: *token_depends
+      - <<: *class_study_info_depends
+      - <<: *class_study_class_depends
+    - - <<: *token_depends
+      - <<: *class_study_info_depends
+      - <<: *class_study_class_depends
+
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume($$$$json_file::study_err.json::class_study_info_err_class_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::class_study_info_err_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::class_study_info_err_class_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::class_study_info_err_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::class_study_info_err_class_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::class_study_info_err_class_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::class_study_info_no_param_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::class_study_info_no_param_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::class_study_info_no_param_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::class_study_info_no_param_class_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::class_study_info_no_param_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::class_study_info_no_param_map_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.id"))
+
+# 写作业
+submit_homework:
+  run:
+  story: 15-提交导学案作业
+  module_flag: *v6console_moduleflag
+  description:
+    - 【作业流程1-2】验证提交初中化学作业是否成功
+    - 【作业流程2-2】验证提交高中化学作业是否成功
+    - 【作业流程3-2】验证提交初中物理作业是否成功
+    - 【作业流程4-2】验证提交高中物理作业是否成功
+    - 【作业流程5-2】验证提交初中生物作业是否成功
+    - 【作业流程6-2】验证提交高中生物作业是否成功
+    - 【作业流程7-2】验证提交初中化学精品作业是否成功
+    - 【作业流程8-2】验证提交高中化学精品作业是否成功
+    - 【作业流程9-2】验证提交初中物理精品作业是否成功
+    - 【作业流程10-2】验证提交高中物理精品作业是否成功
+    - 【作业流程11-2】验证提交初中生物精品作业是否成功
+    - 【作业流程12-2】验证提交高中生物精品作业是否成功
+    #    - 【作业流程13-2】验证提交已过期学案作业是否不能提交
+    #    - 【作业流程14-2】验证提交未开始学案作业是否不能提交
+    - 【作业流程15-2】验证提交变更标题学案作业是否成功
+    - 【作业流程16-2】验证提交公开字段为100进行中作业是否成功
+    #    - 【作业流程17-2】验证提交公开字段为100未开始作业是否不能提交
+    #    - 【作业流程18-2】验证提交公开字段为100已结束作业是否不能提交
+    - 验证不传学案id task_id 是否报错，当前500
+    - 验证不传班级id task_id 是否报错，当前500
+    - 验证不传作业内容content 是否报错，当前400，内容字段可不传
+    - 验证不传附件attachment 是否报错，当前400，附件字段可不传
+    - 验证不传作业id map_id 是否报错，当前500
+
+
+  params_type: json
+  host: *v6console_test
+  path: /v1/post/submit
+  request_param: &submit_homework_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json: &submit_homework
+      # 学案id 必须字段
+      task_id: $task_id
+      # 班级id 必须字段
+      class_id: $class_id
+      # 内容 必须字段，可为[]
+      content: []
+      # 附件 必须字段，可为[]
+      attachment: []
+      # 作业id 必须字段
+      map_id: $class_study_id
+
+  request_params:
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    #    - <<: *submit_homework_params
+    #    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+    #    - <<: *submit_homework_params
+    #    - <<: *submit_homework_params
+    - <<: *submit_homework_params
+      json:
+        class_id: $class_id
+        content: []
+        attachment: []
+        map_id: $class_study_id
+    - <<: *submit_homework_params
+      json:
+        task_id: $task_id
+        content: []
+        attachment: []
+        map_id: $class_study_id
+    - <<: *submit_homework_params
+      json:
+        task_id: $task_id
+        class_id: $class_id
+        attachment: [ ]
+        map_id: $class_study_id
+    - <<: *submit_homework_params
+      json:
+        task_id: $task_id
+        class_id: $class_id
+        content: [ ]
+        map_id: $class_study_id
+    - <<: *submit_homework_params
+      json:
+        task_id: $task_id
+        class_id: $class_id
+        content: [ ]
+        attachment: [ ]
+
+  response:
+    - &stu_homework
+      filepath: &stu_chemistry_m_homework stu_chemistry_m_homework.json
+      resp_keys: [ $.data.id, $.data.task_id ]
+      keys: [ id_resp, taskid_resp ]
+    - <<: *stu_homework
+      filepath: &stu_chemistry_h_homework stu_chemistry_h_homework.json
+    - <<: *stu_homework
+      filepath: &stu_physics_m_homework stu_physics_m_homework.json
+    - <<: *stu_homework
+      filepath: &stu_physics_h_homework stu_physics_h_homework.json
+    - <<: *stu_homework
+      filepath: &stu_biology_m_homework stu_biology_m_homework.json
+    - <<: *stu_homework
+      filepath: &stu_biology_h_homework stu_biology_h_homework.json
+    - <<: *stu_homework
+      filepath: &stu_chemistry_m_quality_homework stu_chemistry_m_quality_homework.json
+    - <<: *stu_homework
+      filepath: &stu_chemistry_h_quality_homework stu_chemistry_h_quality_homework.json
+    - <<: *stu_homework
+      filepath: &stu_physics_m_quality_homework stu_physics_m_quality_homework.json
+    - <<: *stu_homework
+      filepath: &stu_physics_h_quality_homework stu_physics_h_quality_homework.json
+    - <<: *stu_homework
+      filepath: &stu_biology_m_quality_homework stu_biology_m_quality_homework.json
+    - <<: *stu_homework
+      filepath: &stu_biology_h_quality_homework stu_biology_h_quality_homework.json
+
+  depends_on:
+    -
+      - &stu_depends
+        <<: *token_depends
+        case_id: *stu_token
+      - &submit_class_depends
+        <<: *token_depends
+        case_id: *chemistry_m_class
+        depend_key: [ classid_resp ]
+        replace_key: [ class_id ]
+      - &submit_study_depends
+        <<: *token_depends
+        case_id: *chemistry_m_homework
+        depend_key: [ id_resp, taskid_resp ]
+        replace_key: [ class_study_id, task_id ]
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *chemistry_h_class
+      - <<: *submit_study_depends
+        case_id: *chemistry_h_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *physics_m_class
+      - <<: *submit_study_depends
+        case_id: *physics_m_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *physics_h_class
+      - <<: *submit_study_depends
+        case_id: *physics_h_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *biology_m_class
+      - <<: *submit_study_depends
+        case_id: *biology_m_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *biology_h_class
+      - <<: *submit_study_depends
+        case_id: *biology_h_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *chemistry_m_class
+      - <<: *submit_study_depends
+        case_id: *chemistry_m_quality_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *chemistry_h_class
+      - <<: *submit_study_depends
+        case_id: *chemistry_h_quality_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *physics_m_class
+      - <<: *submit_study_depends
+        case_id: *physics_m_quality_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *physics_h_class
+      - <<: *submit_study_depends
+        case_id: *physics_h_quality_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *biology_m_class
+      - <<: *submit_study_depends
+        case_id: *biology_m_quality_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+        case_id: *biology_h_class
+      - <<: *submit_study_depends
+        case_id: *biology_h_quality_homework
+    #    - - <<: *stu_depends
+    #      - <<: *submit_class_depends
+    #      - <<: *submit_study_depends
+    #        case_id: *end_homework
+    #    - - <<: *stu_depends
+    #      - <<: *submit_class_depends
+    #      - <<: *submit_study_depends
+    #        case_id: *no_start_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+        case_id: *use_title_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+        case_id: *no_open_homework
+    #    - - <<: *stu_depends
+    #      - <<: *submit_class_depends
+    #      - <<: *submit_study_depends
+    #        case_id: *no_open_start_homework
+    #    - - <<: *stu_depends
+    #      - <<: *submit_class_depends
+    #      - <<: *submit_study_depends
+    #        case_id: *no_open_end_homework
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *stu_depends
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_h_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_m_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_h_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_m_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_h_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_quality_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_h_quality_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_m_quality_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_h_quality_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_m_quality_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_h_quality_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+
+    #    - - pytest.assume($$$$json_file::study_err.json::submit_study_end_homework_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::submit_study_end_homework_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    - - pytest.assume($$$$json_file::study_err.json::submit_study_start_homework_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::submit_study_start_homework_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_use_title_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_no_open_homework.json::taskid_resp$$$$ in jsonpath(req_json, "$.data.task_id"))
+    #    - - pytest.assume($$$$json_file::study_err.json::submit_study_start_homework_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::submit_study_start_homework_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    #    - - pytest.assume($$$$json_file::study_err.json::submit_study_end_homework_status_code$$$$ == req.status_code)
+    #      - pytest.assume("$$$$json_file::study_err.json::submit_study_end_homework_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+    - - pytest.assume(500 == req.status_code)
+    - - pytest.assume(500 == req.status_code)
+    - - pytest.assume(400 == req.status_code)
+    - - pytest.assume(400 == req.status_code)
+    - - pytest.assume(500 == req.status_code)
+
+# 作业列表
+homework_list:
+  run:
+  story: 16-导学案作业列表
+  module_flag: *v6console_moduleflag
+  description:
+    - 验证查询班级内提交作业学生名单是否成功
+    - 验证查询班级内未提交作业学生名单是否成功
+    - 验证不传学案id，400报错，缺少参数task_id
+    - 验证不传班级id，400报错，缺少参数class_id
+    - 验证不传筛选字段，必须字段，当前不传可查询全部学生
+    - 验证不传作业id，400报错，缺少参数mao_id
+  params_type: params
+  host: *v6console_test
+  path: /v1/post/list
+  request_param: &homework_list_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    params: &homework_list
+      # 学案id，必须字段
+      task_id: $task_id
+      # 班级id，必须字段
+      class_id: $class_id
+      # 筛选条件，必须字段，uncommitted作业未提交的用户, committed作业已提交的用户
+      filter: committed
+      # 作业id，必须字段
+      map_id: $class_study_id
+
+  request_params:
+    - <<: *homework_list_params
+    - <<: *homework_list_params
+      params:
+        <<: *homework_list
+        filter: uncommitted
+    - <<: *homework_list_params
+      params:
+        class_id: $class_id
+        filter: committed
+        map_id: $class_study_id
+    - <<: *homework_list_params
+      params:
+        task_id: $task_id
+        filter: committed
+        map_id: $class_study_id
+    - <<: *homework_list_params
+      params:
+        task_id: $task_id
+        class_id: $class_id
+        map_id: $class_study_id
+    - <<: *homework_list_params
+      params:
+        task_id: $task_id
+        class_id: $class_id
+        filter: committed
+
+  response:
+    -
+  depends_on:
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *submit_class_depends
+      - <<: *submit_study_depends
+
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(1 == jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(0 == jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume($$$$json_file::study_err.json::homework_list_no_params_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::homework_list_no_params_task_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume($$$$json_file::study_err.json::homework_list_no_params_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::homework_list_no_params_class_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(1 == jsonpath(req_json, "$._meta.totalCount")[0])
+    - - pytest.assume($$$$json_file::study_err.json::homework_list_no_params_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::homework_list_no_params_map_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+# 作业详情
+homework_info:
+  run:
+  story: 17-导学案作业详情
+  module_flag: *v6console_moduleflag
+  description:
+    - 【作业流程1-3-1】验证老师查看学生提交初中化学作业详情是否成功
+    - 【作业流程2-3-1】验证老师查看学生提交高中化学作业详情是否成功
+    - 【作业流程3-3-1】验证老师查看学生提交初中物理作业详情是否成功
+    - 【作业流程4-3-1】验证老师查看学生提交高中物理作业详情是否成功
+    - 【作业流程5-3-1】验证老师查看学生提交初中生物作业详情是否成功
+    - 【作业流程6-3-1】验证老师查看学生提交高中生物作业详情是否成功
+    - 【作业流程7-3-1】验证老师查看学生提交初中化学精品作业详情是否成功
+    - 【作业流程8-3-1】验证老师查看学生提交高中化学精品作业详情是否成功
+    - 【作业流程9-3-1】验证老师查看学生提交初中物理精品作业详情是否成功
+    - 【作业流程10-3-1】验证老师查看学生提交高中物理精品作业详情是否成功
+    - 【作业流程11-3-1】验证老师查看学生提交初中生物精品作业详情是否成功
+    - 【作业流程12-3-1】验证老师查看学生提交高中生物精品作业详情是否成功
+    - 【作业流程1-3-2】验证学生查看自己提交初中化学作业详情是否成功
+    - 【作业流程2-3-2】验证学生查看自己提交高中化学作业详情是否成功
+    - 【作业流程3-3-2】验证学生查看自己提交初中物理作业详情是否成功
+    - 【作业流程4-3-2】验证学生查看自己提交高中物理作业详情是否成功
+    - 【作业流程5-3-2】验证学生查看自己提交初中生物作业详情是否成功
+    - 【作业流程6-3-2】验证学生查看自己提交高中生物作业详情是否成功
+    - 【作业流程7-3-2】验证学生查看自己提交初中化学精品作业详情是否成功
+    - 【作业流程8-3-2】验证学生查看自己提交高中化学精品作业详情是否成功
+    - 【作业流程9-3-2】验证学生查看自己提交初中物理精品作业详情是否成功
+    - 【作业流程10-3-2】验证学生查看自己提交高中物理精品作业详情是否成功
+    - 【作业流程11-3-2】验证学生查看自己提交初中生物精品作业详情是否成功
+    - 【作业流程12-3-2】验证学生查看自己提交高中生物精品作业详情是否成功
+    - 验证不传作业id，400报错，缺少参数：post_id
+
+  params_type: params
+  host: *v6console_test
+  path: /v1/post/info
+  request_param: &homework_info_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params:
+      post_id: $homework_id
+
+  request_params:
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+    - <<: *homework_info_params
+      params:
+
+
+  response:
+    -
+  depends_on:
+    - - <<: *token_depends
+      - &homework_depends
+        <<: *token_depends
+        case_id: *stu_chemistry_m_homework
+        depend_key: [ id_resp ]
+        replace_key: [ homework_id ]
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_chemistry_h_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_physics_m_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_physics_h_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_biology_m_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_biology_h_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_chemistry_m_quality_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_chemistry_h_quality_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_physics_m_quality_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_physics_h_quality_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_biology_m_quality_homework
+    - - <<: *token_depends
+      - <<: *homework_depends
+        case_id: *stu_biology_h_quality_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_chemistry_m_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_chemistry_h_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_physics_m_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_physics_h_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_biology_m_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_biology_h_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_chemistry_m_quality_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_chemistry_h_quality_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_physics_m_quality_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_physics_h_quality_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_biology_m_quality_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *homework_depends
+        case_id: *stu_biology_h_quality_homework
+    - - <<: *token_depends
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_m_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_h_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_m_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_h_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_m_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_h_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_m_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_h_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_m_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_h_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_m_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_h_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_m_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_h_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_m_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_h_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_m_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_h_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_m_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_chemistry_h_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_m_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_physics_h_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_m_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::stu_biology_h_quality_homework::id_resp$$$$ in jsonpath(req_json, "$.data.id"))
+
+    - - pytest.assume($$$$json_file::study_err.json::homework_info_no_params_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::homework_info_no_params_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+# 学案发布到的班级列表
+study_class_list:
+  run:
+  story: 18-导学案已经发布到的班级列表-用于导学案撤回提醒
+  module_flag: *v6console_moduleflag
+  description:
+    - 验证初中化学学案是否已经发布到班级
+    - 验证高中化学学案是否已经发布到班级
+    - 验证初中物理学案是否已经发布到班级
+    - 验证高中物理学案是否已经发布到班级
+    - 验证初中生物学案是否已经发布到班级
+    - 验证高中生物学案是否已经发布到班级
+    - 验证缺少学案id，400报错，缺少参数task_id
+  params_type: params
+  host: *v6console_test
+  path: /v1/task/published-class
+  request_param: &study_class_list_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+
+    params:
+      task_id: $task_id
+
+  request_params:
+    - <<: *study_class_list_params
+    - <<: *study_class_list_params
+    - <<: *study_class_list_params
+    - <<: *study_class_list_params
+    - <<: *study_class_list_params
+    - <<: *study_class_list_params
+    - <<: *study_class_list_params
+      params:
+
+  response:
+    -
+  depends_on:
+    - - <<: *token_depends
+      - &class_list_depends
+        <<: *token_depends
+        case_id: *chemistry_m_study
+        depend_key: [ studyid_resp ]
+        replace_key: [ task_id ]
+    - - <<: *token_depends
+      - <<: *class_list_depends
+        case_id: *chemistry_h_study
+    - - <<: *token_depends
+      - <<: *class_list_depends
+        case_id: *physics_m_study
+    - - <<: *token_depends
+      - <<: *class_list_depends
+        case_id: *physics_h_study
+    - - <<: *token_depends
+      - <<: *class_list_depends
+        case_id: *biology_m_study
+    - - <<: *token_depends
+      - <<: *class_list_depends
+        case_id: *biology_h_study
+    - - <<: *token_depends
+
+
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_chemistry_h_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_physics_h_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_m_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume($$$$json_file::18010151728_biology_h_class.json::classid_resp$$$$ in jsonpath(req_json, "$.data[*].id"))
+    - - pytest.assume($$$$json_file::study_err.json::study_class_list_no_params_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::study_class_list_no_params_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+# 撤回学案
+revoke_study:
+  run:
+  story: 19-撤回导学案
+  module_flag: *v6console_moduleflag
+  description:
+    - 【作业流程1-4】验证撤回初中化学学案是否成功
+    - 【作业流程2-4】验证撤回高中化学学案是否成功
+    - 【作业流程3-4】验证撤回初中物理学案是否成功
+    - 【作业流程4-4】验证撤回高中物理学案是否成功
+    - 【作业流程5-4】验证初中生物学案是否成功
+    - 【作业流程6-4】验证高中生物学案是否成功
+    - 【作业流程7-4】验证初中化学精品学案是否成功
+    - 【作业流程8-4】验证高中化学精品学案是否成功
+    - 【作业流程9-4】验证初中物理精品学案是否成功
+    - 【作业流程10-4】验证高中物理精品学案是否成功
+    - 【作业流程11-4】验证初中生物精品学案是否成功
+    - 【作业流程12-4】验证高中生物精品学案是否成功
+    #    - 【作业流程13-4】验证过期学案是否不能撤回，当前可执行撤回
+    - 【作业流程14-4】验证撤回未开始学案是否成功
+    - 【作业流程15-4】验证撤回增加标题学案是否成功
+    - 【作业流程16-4】验证不公开进行中学案撤回是否成功
+    - 【作业流程17-4】验证不公开未开始学案撤回是否成功
+    #    - 【作业流程18-4】验证不公开已结束学案是否不能撤回，当前可执行撤回
+    - 验证撤回他人学案，学生撤回老师学案，404报错，学案-不属于当前用户
+    - 验证不传学案id，当前500异常
+    - 验证已撤回学案是否不能再次撤回，当前可再次执行撤回
+  params_type: json
+  host: *v6console_test
+  path: /v1/task/revoke
+  request_param: &revoke_study_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json:
+      map_id: $homeword_id
+
+  request_params:
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    #    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    #    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+    - <<: *revoke_study_params
+      json:
+    - <<: *revoke_study_params
+
+  response:
+    -
+
+  depends_on:
+    - - <<: *token_depends
+      - &revoke_depends
+        <<: *token_depends
+        case_id: *chemistry_m_homework
+        depend_key: [ id_resp ]
+        replace_key: [ homeword_id ]
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *chemistry_h_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *physics_m_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *physics_h_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *biology_m_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *biology_h_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *chemistry_m_quality_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *chemistry_h_quality_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *physics_m_quality_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *physics_h_quality_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *biology_m_quality_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *biology_h_quality_homework
+    #    - - <<: *token_depends
+    #      - <<: *revoke_depends
+    #        cas_id: *end_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *no_start_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *use_title_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *no_open_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *no_open_start_homework
+    #    - - <<: *token_depends
+    #      - <<: *revoke_depends
+    #        cas_id: *no_open_end_homework
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *revoke_depends
+        cas_id: *chemistry_m_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *chemistry_m_homework
+    - - <<: *token_depends
+      - <<: *revoke_depends
+        cas_id: *chemistry_m_homework
+
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    #    - - pytest.assume(200 == req.status_code)
+    #      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    #    - - pytest.assume(200 == req.status_code)
+    #      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+    - - pytest.assume($$$$json_file::study_err.json::revoke_study_err_map_id_status_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::revoke_study_err_map_id_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
+
+    - - pytest.assume($$$$json_file::study_err.json::revoke_study_no_param_map_id_status_code$$$$ == req.status_code)
+
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(-100 in jsonpath(req_json, "$.data.status"))
+
+# 撤回学案
+release_class:
+  run:
+  story: 20-【业务流程后置条件】-解散班级，作业处理完成后，解散班级
+  module_flag: *v6console_moduleflag
+  description:
+    - 【业务流程后置条件】-解散初中化学班级
+    - 【业务流程后置条件】-解散高中化学班级
+    - 【业务流程后置条件】-解散初中物理班级
+    - 【业务流程后置条件】-解散高中物理班级
+    - 【业务流程后置条件】-解散初中生物班级
+    - 【业务流程后置条件】-解散高中生物班级
+    - 【业务流程后置条件】-解散学生创建班级
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/release
+  request_param: &release_class_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json:
+      id: $class_id
+
+  request_params:
+    - <<: *release_class_params
+    - <<: *release_class_params
+    - <<: *release_class_params
+    - <<: *release_class_params
+    - <<: *release_class_params
+    - <<: *release_class_params
+    - <<: *release_class_params
+
+  response:
+    -
+  depends_on:
+    - - <<: *token_depends
+      - &release_depends
+        <<: *token_depends
+        case_id: *chemistry_m_class
+        depend_key: [ classid_resp ]
+        replace_key: [ class_id ]
+    - - <<: *token_depends
+      - <<: *release_depends
+        case_id: *chemistry_h_class
+    - - <<: *token_depends
+      - <<: *release_depends
+        case_id: *physics_m_class
+    - - <<: *token_depends
+      - <<: *release_depends
+        case_id: *physics_h_class
+    - - <<: *token_depends
+      - <<: *release_depends
+        case_id: *biology_m_class
+    - - <<: *token_depends
+      - <<: *release_depends
+        case_id: *biology_h_class
+    - - <<: *token_depends
+        case_id: *stu_token
+      - <<: *release_depends
+        case_id: *student_class
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+
+# 2022-11-17  学案增加删除接口
+# 删除学案
+delete_study:
+  run:
+  story: 21-【业务流程】-删除学案
+  module_flag: *v6console_moduleflag
+  description:
+    - 删除初中化学学案，是否成功
+    - 删除高中化学学案，是否成功
+    - 删除初中物理学案，是否成功
+    - 删除高中物理学案，是否成功
+    - 删除初中生物学案，是否成功
+    - 删除高中生物学案，是否成功
+    # 2022-11-23 脚本中新建的学案进行删除操作
+    - 删除没有实验初中学案，是否成功
+    - 删除没有实验高中学案，是否成功
+    - 删除没有内容学案，是否成功
+    - 删除空内容学案，是否成功
+    - 删除不存在学段学案，是否成功
+    - 删除数字标题学案，是否成功
+    - 删除html标签标题学案，是否成功
+
+    - 删除复制初中化学学案，是否成功
+    - 删除复制高中化学学案，是否成功
+    - 删除复制初中物理学案，是否成功
+    - 删除复制高中物理学案，是否成功
+    - 删除复制初中生物学案，是否成功
+    - 删除复制高中生物学案，是否成功
+    - 删除精品初中化学学案，是否成功
+    - 删除精品高中化学学案，是否成功
+    - 删除精品初中物理学案，是否成功
+    - 删除精品高中物理学案，是否成功
+    - 删除精品初中生物学案，是否成功
+    - 删除精品高中生物学案，是否成功
+    - 删除初中化学学案，是否成功
+    - 不传id是否失败
+
+  params_type: json
+  host: *v6console_test
+  path: /v1/task/delete
+  request_param: &delete_study_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+
+    json:
+      task_id: $task_id
+
+  request_params:
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+    - <<: *delete_study_params
+      json:
+
+
+  response:
+    -
+
+  depends_on:
+    - - <<: *token_depends
+      - &delete_sudy_depends
+        <<: *token_depends
+        case_id: *chemistry_m_study
+        depend_key: [ studyid_resp ]
+        replace_key: [ task_id ]
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *chemistry_h_study
+
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *physics_m_study
+
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *physics_h_study
+
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *biology_m_study
+
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *biology_h_study
+
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *noexperiment_m_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *noexperiment_h_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *nocontent_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *nullcontent_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *no_grade_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *num_title_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *html_title_study
+
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *chem_m_copy_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *chem_h_copy_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *phy_m_copy_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *phy_h_copy_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *bio_m_copy_study
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *bio_h_copy_study
+
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *chemistry_m_quality_homework
+        depend_key: [ taskid_resp ]
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *chemistry_h_quality_homework
+        depend_key: [ taskid_resp ]
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *physics_m_quality_homework
+        depend_key: [ taskid_resp ]
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *physics_h_quality_homework
+        depend_key: [ taskid_resp ]
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *biology_m_quality_homework
+        depend_key: [ taskid_resp ]
+    - - <<: *token_depends
+      - <<: *delete_sudy_depends
+        case_id: *biology_h_quality_homework
+        depend_key: [ taskid_resp ]
+
+    - - <<: *token_depends
+
+
+  assert:
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume(int("$$$$req_param::$.json.task_id::[0]$$$$") in jsonpath(req_json, "$.data.id"))
+    - - pytest.assume($$$$json_file::study_err.json::delete_study_no_params_code$$$$ == req.status_code)
+      - pytest.assume("$$$$json_file::study_err.json::delete_study_no_params_message$$$$" in jsonpath(req_json, "$.data.manual_detail"))
