@@ -13,8 +13,8 @@ pipeline { // Jenkins脚本的根节点，不能缺失
         maven 'Maven-3.6.1' // Maven-3.6.1是全局工具配置中的Maven名称
     }
     stages { // stages是Jenkins的阶段组，一个流水线可以包含多个阶段，由于在流水线中配置了Git，所以脚本中不需要写Git Clone的阶段，Jenkins会自动触发 Git Clone
-            stage("第一步"){
-                echo "hello world"
+            stage('Build'){
+                echo 'hello'
             }
 //         stage('Build') { // 阶段一 使用Maven打包项目
 //             steps {
