@@ -9,21 +9,21 @@ pipeline { // Jenkins脚本的根节点，不能缺失
     options { // Jenkins的选项，可以配置构建的超时时间、日志输出时间等
         timestamps() // 日志输出时间（需要Build Timestamp Plugin 插件支持）
     }
-//     tools { // 配置打包用的工具
-//         maven 'Maven-3.6.1' // Maven-3.6.1是全局工具配置中的Maven名称
-//     }
+    tools { // 配置打包用的工具
+        maven 'Maven-3.8.1' // Maven-3.6.1是全局工具配置中的Maven名称
+    }
     stages { // stages是Jenkins的阶段组，一个流水线可以包含多个阶段，由于在流水线中配置了Git，所以脚本中不需要写Git Clone的阶段，Jenkins会自动触发 Git Clone
-            stage('Build'){
+            stage('start'){
                 steps {
                       echo 'hello'
                 }
 
             }
-//         stage('Build') { // 阶段一 使用Maven打包项目
-//             steps {
-//                 sh 'mvn -s "C:\\Users\\EEO\\.m2\\settings.xml" clean test '
-//             }
-//         }
+            stage('Build') { // 阶段一 使用Maven打包项目
+                steps {
+                    sh 'mvn -s "C:\\Users\\EEO\\.m2\\settings.xml" clean test '
+                }
+            }
 //         stage('Deploy') { // 阶段二 把打包后的Jar包上传至服务器，并执行Shell脚本(需要Publish Over SSH插件支持)
 //             steps {
 //                 sshPublisher(publishers: [sshPublisherDesc(configName: "${desc_ip}", transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand:
